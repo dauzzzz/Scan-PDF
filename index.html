@@ -450,8 +450,15 @@
               </div>
 
               <!-- Panduan Frame di atas Video -->
-              <div id="camera-overlay-guide" class="hidden absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-                <div id="guide-box-doc" class="w-full h-full border-2 border-emerald-400/70 rounded-xl relative">
+              <div id="camera-overlay-guide" class="hidden absolute inset-0 pointer-events-none flex items-center justify-center">
+                <!-- Kanvas Deteksi Tepi Kertas Real-Time (Bergerak Mengikuti Ujung Kertas) -->
+                <canvas id="camera-live-edge-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                <!-- Indikator Status Deteksi Kertas Live -->
+                <div id="live-edge-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/65 backdrop-blur-sm text-white text-[11px] font-bold flex items-center gap-1.5 shadow">
+                  <span id="live-edge-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span id="live-edge-text">Mencari tepi kertas...</span>
+                </div>
+                <div id="guide-box-doc" class="hidden w-full h-full border-2 border-emerald-400/70 rounded-xl relative">
                   <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
                   <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
                   <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg"></div>
@@ -1105,6 +1112,11 @@
     autoCaptureTimer: null,
     lastFrameData: null,
     stableCounter: 0,
+    liveEdgeRafId: null,
+    liveEdgeDetectTimer: null,
+    liveTargetCorners: null,
+    liveSmoothCorners: null,
+    liveDocDetected: false,
     apiKeys: [],
     apiKeyIndex: 0,
     deferredPwaPrompt: null,
@@ -1677,9 +1689,13 @@
     });
     document.getElementById('idcard-guide-bar').classList.toggle('hidden', mode !== 'idcard');
     document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
-    document.getElementById('guide-box-doc').classList.toggle('hidden', mode !== 'document');
+    document.getElementById('guide-box-doc').classList.add('hidden');
     document.getElementById('guide-line-book').classList.toggle('hidden', mode !== 'book');
     document.getElementById('guide-box-idcard').classList.toggle('hidden', mode !== 'idcard');
+    const liveCanvas = document.getElementById('camera-live-edge-canvas');
+    const liveBadge = document.getElementById('live-edge-badge');
+    if (liveCanvas) liveCanvas.classList.toggle('hidden', mode === 'idcard');
+    if (liveBadge) liveBadge.classList.toggle('hidden', mode === 'idcard' || !state.cameraStream);
   }
 
   function renderScanFilmstrip() {
@@ -1749,7 +1765,8 @@
       const track = stream.getVideoTracks()[0];
       const caps = track.getCapabilities ? track.getCapabilities() : {};
       document.getElementById('btn-toggle-torch').disabled = !caps.torch;
-      showToast('Kamera belakang aktif.', 'success');
+      startLiveEdgeTracking();
+      showToast('Kamera belakang aktif — deteksi tepi kertas langsung berjalan.', 'success');
     } catch (err) {
       errEl.textContent = 'Izin kamera ditolak atau kamera tidak ditemukan. Izinkan akses kamera di browser Anda atau gunakan tombol Galeri.';
       showToast('Izin kamera ditolak: ' + err.message, 'error');
@@ -1757,6 +1774,7 @@
   }
 
   function stopCamera() {
+    stopLiveEdgeTracking();
     if (state.autoCaptureTimer) {
       clearInterval(state.autoCaptureTimer);
       state.autoCaptureTimer = null;
@@ -1866,78 +1884,6 @@
     return c.toDataURL('image/jpeg', quality);
   }
 
-  function captureFromCamera() {
-    const video = document.getElementById('camera-video');
-    if (!video || !video.videoWidth) return;
-    const c = document.createElement('canvas');
-    c.width = video.videoWidth;
-    c.height = video.videoHeight;
-    c.getContext('2d').drawImage(video, 0, 0);
-    processCapturedImage(c.toDataURL('image/jpeg', 0.92));
-  }
-
-  async function processCapturedImage(rawDataUrl) {
-    if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
-    const dataUrl = await normalizeImageDataUrl(rawDataUrl, 2000, 0.88);
-
-    // MODE ID CARD / KTP (Depan + Belakang -> 1 Halaman A4)
-    if (state.scanMode === 'idcard') {
-      const cardRes = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
-      const processedCardUrl = cardRes.warpedUrl;
-      if (!state.idCardFrontDataUrl) {
-        state.idCardFrontDataUrl = processedCardUrl;
-        document.getElementById('idcard-step-text').textContent = 'Langkah 2/2 — Tampak Depan tersimpan! Sekarang foto/unggah Tampak Belakang.';
-        showToast('Tampak Depan tersimpan. Lanjut Tampak Belakang.', 'success');
-        return;
-      } else {
-        const mergedA4 = await combineIdCardToA4(state.idCardFrontDataUrl, processedCardUrl);
-        state.idCardFrontDataUrl = null;
-        document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
-        await addPageToActiveDoc(mergedA4, mergedA4, null);
-        showToast('ID Card Depan & Belakang berhasil digabung ke 1 halaman A4!', 'success');
-        if (!state.batchMode) switchView('editor');
-        return;
-      }
-    }
-
-    // MODE BUKU (Belah 2 halaman kiri & kanan otomatis)
-    if (state.scanMode === 'book') {
-      const bookRes = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
-      const [leftUrl, rightUrl] = await splitBookPages(bookRes.warpedUrl);
-      await addPageToActiveDoc(leftUrl, leftUrl, null);
-      await addPageToActiveDoc(rightUrl, rightUrl, null);
-      showToast('Mode Buku: 2 halaman (Kiri & Kanan) berhasil dipisahkan!', 'success');
-      if (!state.batchMode) switchView('editor');
-      return;
-    }
-
-    // MODE DOKUMEN STANDAR
-    if (state.batchMode) {
-      const res = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
-      await addPageToActiveDoc(res.warpedUrl, dataUrl, res.corners);
-      const total = getActiveDoc()?.pages.length || 0;
-      state.batchCount = total;
-      document.getElementById('batch-count-badge').textContent = total;
-      document.getElementById('btn-finish-batch').classList.remove('hidden');
-      showToast(
-        state.autoCropEnabled
-          ? `Halaman #${total} otomatis di-crop & diluruskan!`
-          : `Halaman #${total} ditambahkan! Lanjut scan atau klik Selesai.`,
-        'success'
-      );
-    } else {
-      openPerspectiveCropper(dataUrl, async (warpedUrl, continueScanning, chosenCorners) => {
-        await addPageToActiveDoc(warpedUrl, dataUrl, chosenCorners);
-        if (continueScanning) {
-          const total = getActiveDoc()?.pages.length || 0;
-          showToast(`Halaman #${total} disimpan! Silakan scan halaman berikutnya.`, 'success');
-        } else {
-          switchView('editor');
-        }
-      }, true);
-    }
-  }
-
   async function addPageToActiveDoc(dataUrl, rawDataUrl = null, cropCorners = null) {
     let doc = getActiveDoc();
     if (!doc) doc = await createNewDocument(null, state.scanMode);
@@ -2029,227 +1975,300 @@
   }
 
   // =========================================================================
-  // 9. DETEKSI TEPI OTOMATIS (KONTUR TERBESAR + SOBEL CANVAS) & PELURUSAN PERSPEKTIF (BILINEAR + LOUPE)
+  // 8B. DETEKSI TEPI KERTAS LANGSUNG (LIVE EDGE TRACKING OVERLAY DI KAMERA)
   // =========================================================================
-  function detectDocumentCorners(img) {
-    const sw = 240;
-    const sh = Math.max(80, Math.round((img.height / img.width) * sw));
-    const c = document.createElement('canvas');
-    c.width = sw; c.height = sh;
-    const ctx = c.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, sw, sh);
-    const data = ctx.getImageData(0, 0, sw, sh).data;
+  function getVisibleVideoCropRect(video, containerW, containerH) {
+    const vw = video.videoWidth || 1;
+    const vh = video.videoHeight || 1;
+    const scale = Math.max(containerW / vw, containerH / vh);
+    const dispW = vw * scale;
+    const dispH = vh * scale;
+    const offsetX = (containerW - dispW) / 2;
+    const offsetY = (containerH - dispH) / 2;
+    // Batas koordinat ternormalisasi [0..1] video yang benar-benar tampak di layar
+    const minNx = Math.max(0, -offsetX / dispW);
+    const maxNx = Math.min(1, (containerW - offsetX) / dispW);
+    const minNy = Math.max(0, -offsetY / dispH);
+    const maxNy = Math.min(1, (containerH - offsetY) / dispH);
+    return { vw, vh, dispW, dispH, offsetX, offsetY, minNx, maxNx, minNy, maxNy };
+  }
 
-    // 1. Grayscale & statistik tepi latar (desk/meja)
-    const gray = new Float32Array(sw * sh);
-    let borderSum = 0, borderSqSum = 0, borderCount = 0;
-    let centerSum = 0, centerCount = 0;
-    for (let y = 0; y < sh; y++) {
-      for (let x = 0; x < sw; x++) {
-        const i = (y * sw + x) * 4;
-        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        gray[y * sw + x] = g;
-        if (x < 6 || x >= sw - 6 || y < 6 || y >= sh - 6) {
-          borderSum += g;
-          borderSqSum += g * g;
-          borderCount++;
-        } else if (x > sw * 0.25 && x < sw * 0.75 && y > sh * 0.25 && y < sh * 0.75) {
-          centerSum += g;
-          centerCount++;
-        }
-      }
-    }
-    const bgMean = borderCount > 0 ? borderSum / borderCount : 90;
-    const bgStd = borderCount > 0 ? Math.sqrt(Math.max(0, borderSqSum / borderCount - bgMean * bgMean)) : 20;
-    const centerMean = centerCount > 0 ? centerSum / centerCount : 180;
-    const docIsBrighter = centerMean >= bgMean;
-
-    // 2. Gaussian Blur 3x3 untuk meredam noise tekstur meja
-    const blur = new Float32Array(sw * sh);
-    for (let y = 1; y < sh - 1; y++) {
-      for (let x = 1; x < sw - 1; x++) {
-        const idx = y * sw + x;
-        blur[idx] = (
-          gray[idx - sw - 1] + 2 * gray[idx - sw] + gray[idx - sw + 1] +
-          2 * gray[idx - 1] + 4 * gray[idx] + 2 * gray[idx + 1] +
-          gray[idx + sw - 1] + 2 * gray[idx + sw] + gray[idx + sw + 1]
-        ) / 16;
-      }
-    }
-
-    // 3. Masker biner dokumen (memisahkan kertas dari latar meja + Sobel edge)
-    const contrastGap = Math.max(22, Math.min(48, bgStd * 1.35 + 16));
-    const mask = new Uint8Array(sw * sh);
-    for (let y = 2; y < sh - 2; y++) {
-      for (let x = 2; x < sw - 2; x++) {
-        const idx = y * sw + x;
-        const gx = -blur[idx - sw - 1] + blur[idx - sw + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + sw - 1] + blur[idx + sw + 1];
-        const gy = -blur[idx - sw - 1] - 2 * blur[idx - sw] - blur[idx - sw + 1] + blur[idx + sw - 1] + 2 * blur[idx + sw] + blur[idx + sw + 1];
-        const mag = Math.hypot(gx, gy);
-
-        const diffFromBg = docIsBrighter ? (blur[idx] - bgMean) : (bgMean - blur[idx]);
-        if (diffFromBg > contrastGap || (mag > 52 && Math.abs(blur[idx] - bgMean) > 14)) {
-          mask[idx] = 1;
-        }
-      }
-    }
-
-    // 4. Cari komponen terhubung terbesar (Largest Contour / Connected Component) agar kebal noise meja
-    const visited = new Uint8Array(sw * sh);
-    const queue = new Int32Array(sw * sh);
-    let bestSize = 0;
-    let bestBounds = null;
-
-    for (let y = 3; y < sh - 3; y++) {
-      for (let x = 3; x < sw - 3; x++) {
-        const startIdx = y * sw + x;
-        if (!mask[startIdx] || visited[startIdx]) continue;
-
-        let head = 0, tail = 0;
-        queue[tail++] = startIdx;
-        visited[startIdx] = 1;
-
-        let tl = { x: sw, y: sh, score: Infinity };
-        let tr = { x: 0, y: sh, score: -Infinity };
-        let br = { x: 0, y: 0, score: -Infinity };
-        let bl = { x: sw, y: 0, score: Infinity };
-
-        while (head < tail) {
-          const cur = queue[head++];
-          const cy = (cur / sw) | 0;
-          const cx = cur - cy * sw;
-
-          const sum = cx + cy;
-          const diff = cx - cy;
-          if (sum < tl.score) tl = { x: cx, y: cy, score: sum };
-          if (diff > tr.score) tr = { x: cx, y: cy, score: diff };
-          if (sum > br.score) br = { x: cx, y: cy, score: sum };
-          if (diff < bl.score) bl = { x: cx, y: cy, score: diff };
-
-          // 4-tetangga
-          if (cx > 2) { const n = cur - 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-          if (cx < sw - 3) { const n = cur + 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-          if (cy > 2) { const n = cur - sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-          if (cy < sh - 3) { const n = cur + sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-        }
-
-        if (tail > bestSize) {
-          bestSize = tail;
-          bestBounds = [tl, tr, br, bl];
-        }
-      }
-    }
-
-    const defaultQuad = [
-      { x: 0.04, y: 0.04 },
-      { x: 0.96, y: 0.04 },
-      { x: 0.96, y: 0.96 },
-      { x: 0.04, y: 0.96 }
+  function getDefaultVisibleCorners(rect) {
+    const padX = (rect.maxNx - rect.minNx) * 0.1;
+    const padY = (rect.maxNy - rect.minNy) * 0.1;
+    return [
+      { x: rect.minNx + padX, y: rect.minNy + padY },
+      { x: rect.maxNx - padX, y: rect.minNy + padY },
+      { x: rect.maxNx - padX, y: rect.maxNy - padY },
+      { x: rect.minNx + padX, y: rect.maxNy - padY }
     ];
-
-    if (!bestBounds || bestSize < sw * sh * 0.08) return defaultQuad;
-
-    const pts = bestBounds.map((pt) => ({
-      x: Math.max(0.01, Math.min(0.99, pt.x / sw)),
-      y: Math.max(0.01, Math.min(0.99, pt.y / sh))
-    }));
-
-    // Validasi luas segiempat (Shoelace formula) — minimal 16% luas frame
-    let area = 0;
-    for (let i = 0; i < 4; i++) {
-      const j = (i + 1) % 4;
-      area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-    }
-    area = Math.abs(area) * 0.5;
-    if (area < 0.16 || pts[1].x <= pts[0].x + 0.14 || pts[2].y <= pts[1].y + 0.14) {
-      return defaultQuad;
-    }
-
-    return pts;
   }
 
-  // Pelurusan Perspektif Berkualitas Tinggi (Homografi + Bilinear Interpolation)
-  function warpImageWithCorners(img, corners) {
-    const srcPts = corners.map((p) => ({ x: p.x * img.width, y: p.y * img.height }));
-    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-    let outW = Math.round(Math.max(dist(srcPts[0], srcPts[1]), dist(srcPts[3], srcPts[2])));
-    let outH = Math.round(Math.max(dist(srcPts[0], srcPts[3]), dist(srcPts[1], srcPts[2])));
-    const maxDim = 2000;
-    if (Math.max(outW, outH) > maxDim) {
-      const r = maxDim / Math.max(outW, outH);
-      outW = Math.round(outW * r);
-      outH = Math.round(outH * r);
+  function detectLiveVideoCorners(video, sampleCanvas, sampleCtx, rect) {
+    const sw = sampleCanvas.width;
+    const sh = sampleCanvas.height;
+    // Ambil potongan video yang benar-benar terlihat di layar HP/Desktop agar akurat
+    const sx = rect.minNx * rect.vw;
+    const sy = rect.minNy * rect.vh;
+    const sWidth = Math.max(1, (rect.maxNx - rect.minNx) * rect.vw);
+    const sHeight = Math.max(1, (rect.maxNy - rect.minNy) * rect.vh);
+
+    sampleCtx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sw, sh);
+    const result = detectDocumentCornersFromImageData(sampleCtx.getImageData(0, 0, sw, sh).data, sw, sh);
+
+    if (!result.detected) {
+      return { detected: false, corners: getDefaultVisibleCorners(rect) };
     }
-    outW = Math.max(120, outW);
-    outH = Math.max(120, outH);
 
-    const srcCanvas = document.createElement('canvas');
-    srcCanvas.width = img.width; srcCanvas.height = img.height;
-    const sctx = srcCanvas.getContext('2d', { willReadFrequently: true });
-    sctx.drawImage(img, 0, 0);
-    const srcData = sctx.getImageData(0, 0, img.width, img.height);
+    // Petakan kembali dari koordinat area terlihat ke koordinat video penuh [0..1]
+    const mapped = result.corners.map((p) => ({
+      x: rect.minNx + p.x * (rect.maxNx - rect.minNx),
+      y: rect.minNy + p.y * (rect.maxNy - rect.minNy)
+    }));
+    return { detected: true, corners: mapped };
+  }
 
-    const dstCanvas = document.createElement('canvas');
-    dstCanvas.width = outW; dstCanvas.height = outH;
-    const dctx = dstCanvas.getContext('2d');
-    const dstData = dctx.createImageData(outW, outH);
+  function startLiveEdgeTracking() {
+    stopLiveEdgeTracking();
+    const video = document.getElementById('camera-video');
+    const overlayCanvas = document.getElementById('camera-live-edge-canvas');
+    const liveBadge = document.getElementById('live-edge-badge');
+    const liveDot = document.getElementById('live-edge-dot');
+    const liveText = document.getElementById('live-edge-text');
+    if (!video || !overlayCanvas) return;
 
-    const dstPts = [{ x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }];
-    const H = solveHomography(srcPts, dstPts);
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = 160;
+    sampleCanvas.height = 160;
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
 
-    const sw = img.width, sh = img.height;
-    const sBuf = srcData.data, dBuf = dstData.data;
+    // Jalankan deteksi kontur tepi setiap ~160ms agar ringan di HP Android
+    state.liveEdgeDetectTimer = setInterval(() => {
+      if (!state.cameraStream || video.readyState < 2 || !video.videoWidth) return;
+      if (state.scanMode === 'idcard') {
+        state.liveDocDetected = false;
+        if (liveBadge) liveBadge.classList.add('hidden');
+        return;
+      }
+      if (liveBadge) liveBadge.classList.remove('hidden');
 
-    for (let y = 0; y < outH; y++) {
-      for (let x = 0; x < outW; x++) {
-        const denom = H[6] * x + H[7] * y + H[8];
-        const sx = (H[0] * x + H[1] * y + H[2]) / denom;
-        const sy = (H[3] * x + H[4] * y + H[5]) / denom;
-        const di = (y * outW + x) * 4;
+      const cw = overlayCanvas.clientWidth || video.clientWidth;
+      const ch = overlayCanvas.clientHeight || video.clientHeight;
+      if (!cw || !ch) return;
 
-        const x0 = Math.floor(sx), y0 = Math.floor(sy);
-        if (x0 >= 0 && x0 < sw - 1 && y0 >= 0 && y0 < sh - 1) {
-          const dx = sx - x0, dy = sy - y0;
-          const w00 = (1 - dx) * (1 - dy);
-          const w10 = dx * (1 - dy);
-          const w01 = (1 - dx) * dy;
-          const w11 = dx * dy;
+      const aspectH = Math.max(96, Math.min(220, Math.round((ch / cw) * 160)));
+      if (sampleCanvas.height !== aspectH) sampleCanvas.height = aspectH;
 
-          const i00 = (y0 * sw + x0) * 4;
-          const i10 = i00 + 4;
-          const i01 = i00 + sw * 4;
-          const i11 = i01 + 4;
+      const rect = getVisibleVideoCropRect(video, cw, ch);
+      const res = detectLiveVideoCorners(video, sampleCanvas, sampleCtx, rect);
+      state.liveTargetCorners = res.corners;
+      state.liveDocDetected = res.detected;
 
-          dBuf[di] = sBuf[i00] * w00 + sBuf[i10] * w10 + sBuf[i01] * w01 + sBuf[i11] * w11;
-          dBuf[di + 1] = sBuf[i00 + 1] * w00 + sBuf[i10 + 1] * w10 + sBuf[i01 + 1] * w01 + sBuf[i11 + 1] * w11;
-          dBuf[di + 2] = sBuf[i00 + 2] * w00 + sBuf[i10 + 2] * w10 + sBuf[i01 + 2] * w01 + sBuf[i11 + 2] * w11;
-          dBuf[di + 3] = 255;
-        } else if (x0 >= 0 && x0 < sw && y0 >= 0 && y0 < sh) {
-          const si = (y0 * sw + x0) * 4;
-          dBuf[di] = sBuf[si];
-          dBuf[di + 1] = sBuf[si + 1];
-          dBuf[di + 2] = sBuf[si + 2];
-          dBuf[di + 3] = 255;
+      if (liveDot && liveText) {
+        if (res.detected) {
+          liveDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+          liveText.textContent = 'Tepi Kertas Terkunci — Siap Jepret';
         } else {
-          dBuf[di] = dBuf[di + 1] = dBuf[di + 2] = 255;
-          dBuf[di + 3] = 255;
+          liveDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+          liveText.textContent = 'Arahkan kamera ke tepi kertas...';
         }
       }
-    }
-    dctx.putImageData(dstData, 0, 0);
-    return dstCanvas.toDataURL('image/jpeg', 0.92);
+    }, 160);
+
+    // Loop animasi 60fps untuk menggerakkan garis & 4 sudut crop secara halus (LERP)
+    const renderLoop = () => {
+      if (!state.cameraStream) return;
+      const cw = overlayCanvas.clientWidth || video.clientWidth;
+      const ch = overlayCanvas.clientHeight || video.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      if (cw > 0 && ch > 0) {
+        if (overlayCanvas.width !== Math.round(cw * dpr) || overlayCanvas.height !== Math.round(ch * dpr)) {
+          overlayCanvas.width = Math.round(cw * dpr);
+          overlayCanvas.height = Math.round(ch * dpr);
+        }
+        const ctx = overlayCanvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cw, ch);
+
+        if (state.scanMode !== 'idcard' && video.videoWidth && state.liveTargetCorners) {
+          if (!state.liveSmoothCorners) {
+            state.liveSmoothCorners = state.liveTargetCorners.map((p) => ({ x: p.x, y: p.y }));
+          } else {
+            const lerp = 0.22;
+            for (let i = 0; i < 4; i++) {
+              state.liveSmoothCorners[i].x += (state.liveTargetCorners[i].x - state.liveSmoothCorners[i].x) * lerp;
+              state.liveSmoothCorners[i].y += (state.liveTargetCorners[i].y - state.liveSmoothCorners[i].y) * lerp;
+            }
+          }
+
+          const rect = getVisibleVideoCropRect(video, cw, ch);
+          const screenPts = state.liveSmoothCorners.map((p) => ({
+            x: rect.offsetX + p.x * rect.dispW,
+            y: rect.offsetY + p.y * rect.dispH
+          }));
+
+          // Gambar poligon pembatas kertas
+          ctx.beginPath();
+          ctx.moveTo(screenPts[0].x, screenPts[0].y);
+          for (let i = 1; i < 4; i++) ctx.lineTo(screenPts[i].x, screenPts[i].y);
+          ctx.closePath();
+
+          ctx.fillStyle = state.liveDocDetected ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.05)';
+          ctx.fill();
+
+          ctx.save();
+          if (!state.liveDocDetected) ctx.setLineDash([8, 6]);
+          ctx.strokeStyle = state.liveDocDetected ? '#10b981' : 'rgba(52, 211, 153, 0.85)';
+          ctx.lineWidth = state.liveDocDetected ? 2.8 : 2;
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+          ctx.restore();
+
+          // Garis belah tengah dinamis untuk Mode Buku
+          if (state.scanMode === 'book') {
+            const topMid = { x: (screenPts[0].x + screenPts[1].x) / 2, y: (screenPts[0].y + screenPts[1].y) / 2 };
+            const botMid = { x: (screenPts[3].x + screenPts[2].x) / 2, y: (screenPts[3].y + screenPts[2].y) / 2 };
+            ctx.save();
+            ctx.setLineDash([6, 5]);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(topMid.x, topMid.y);
+            ctx.lineTo(botMid.x, botMid.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // Gambar 4 titik sudut seperti handle crop yang bergerak mengikuti tepi kertas
+          screenPts.forEach((pt) => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, state.liveDocDetected ? 8 : 6.5, 0, Math.PI * 2);
+            ctx.fillStyle = state.liveDocDetected ? 'rgba(16, 185, 129, 0.95)' : 'rgba(52, 211, 153, 0.75)';
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+          });
+        }
+      }
+      state.liveEdgeRafId = requestAnimationFrame(renderLoop);
+    };
+
+    state.liveEdgeRafId = requestAnimationFrame(renderLoop);
   }
 
-  // Auto-Crop & Perspective Correction otomatis (mengembalikan hasil warp + koordinat 4 sudut)
-  async function autoCropAndDewarpDetailed(dataUrl) {
-    try {
-      const img = await loadImageObj(dataUrl);
-      const corners = detectDocumentCorners(img);
-      const warpedUrl = warpImageWithCorners(img, corners);
-      return { warpedUrl, corners };
-    } catch (err) {
-      console.warn('Auto-crop dilewati:', err);
-      return { warpedUrl: dataUrl, corners: null };
+  function stopLiveEdgeTracking() {
+    if (state.liveEdgeDetectTimer) {
+      clearInterval(state.liveEdgeDetectTimer);
+      state.liveEdgeDetectTimer = null;
+    }
+    if (state.liveEdgeRafId) {
+      cancelAnimationFrame(state.liveEdgeRafId);
+      state.liveEdgeRafId = null;
+    }
+    state.liveTargetCorners = null;
+    state.liveSmoothCorners = null;
+    state.liveDocDetected = false;
+    const overlayCanvas = document.getElementById('camera-live-edge-canvas');
+    if (overlayCanvas) {
+      const ctx = overlayCanvas.getContext('2d');
+      ctx?.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+    document.getElementById('live-edge-badge')?.classList.add('hidden');
+  }
+
+  function captureFromCamera() {
+    const video = document.getElementById('camera-video');
+    if (!video || !video.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    const liveCorners = (state.liveDocDetected && state.liveSmoothCorners)
+      ? state.liveSmoothCorners.map((p) => ({ x: p.x, y: p.y }))
+      : null;
+    processCapturedImage(c.toDataURL('image/jpeg', 0.92), liveCorners);
+  }
+
+  async function processCapturedImage(rawDataUrl, preDetectedCorners = null) {
+    if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
+    const dataUrl = await normalizeImageDataUrl(rawDataUrl, 2000, 0.88);
+
+    // MODE ID CARD / KTP (Depan + Belakang -> 1 Halaman A4)
+    if (state.scanMode === 'idcard') {
+      const cardRes = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
+      const processedCardUrl = cardRes.warpedUrl;
+      if (!state.idCardFrontDataUrl) {
+        state.idCardFrontDataUrl = processedCardUrl;
+        document.getElementById('idcard-step-text').textContent = 'Langkah 2/2 — Tampak Depan tersimpan! Sekarang foto/unggah Tampak Belakang.';
+        showToast('Tampak Depan tersimpan. Lanjut Tampak Belakang.', 'success');
+        return;
+      } else {
+        const mergedA4 = await combineIdCardToA4(state.idCardFrontDataUrl, processedCardUrl);
+        state.idCardFrontDataUrl = null;
+        document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
+        await addPageToActiveDoc(mergedA4, mergedA4, null);
+        showToast('ID Card Depan & Belakang berhasil digabung ke 1 halaman A4!', 'success');
+        if (!state.batchMode) switchView('editor');
+        return;
+      }
+    }
+
+    // MODE BUKU (Belah 2 halaman kiri & kanan otomatis)
+    if (state.scanMode === 'book') {
+      let bookWarpedUrl = dataUrl;
+      if (state.autoCropEnabled) {
+        if (preDetectedCorners) {
+          const img = await loadImageObj(dataUrl);
+          bookWarpedUrl = warpImageWithCorners(img, preDetectedCorners);
+        } else {
+          const bookRes = await autoCropAndDewarpDetailed(dataUrl);
+          bookWarpedUrl = bookRes.warpedUrl;
+        }
+      }
+      const [leftUrl, rightUrl] = await splitBookPages(bookWarpedUrl);
+      await addPageToActiveDoc(leftUrl, leftUrl, null);
+      await addPageToActiveDoc(rightUrl, rightUrl, null);
+      showToast('Mode Buku: 2 halaman (Kiri & Kanan) berhasil dipisahkan!', 'success');
+      if (!state.batchMode) switchView('editor');
+      return;
+    }
+
+    // MODE DOKUMEN STANDAR
+    if (state.batchMode) {
+      let res;
+      if (state.autoCropEnabled) {
+        if (preDetectedCorners) {
+          const img = await loadImageObj(dataUrl);
+          res = { warpedUrl: warpImageWithCorners(img, preDetectedCorners), corners: preDetectedCorners };
+        } else {
+          res = await autoCropAndDewarpDetailed(dataUrl);
+        }
+      } else {
+        res = { warpedUrl: dataUrl, corners: preDetectedCorners };
+      }
+      await addPageToActiveDoc(res.warpedUrl, dataUrl, res.corners);
+      const total = getActiveDoc()?.pages.length || 0;
+      state.batchCount = total;
+      document.getElementById('batch-count-badge').textContent = total;
+      document.getElementById('btn-finish-batch').classList.remove('hidden');
+      showToast(
+        state.autoCropEnabled
+          ? `Halaman #${total} otomatis di-crop & diluruskan!`
+          : `Halaman #${total} ditambahkan! Lanjut scan atau klik Selesai.`,
+        'success'
+      );
+    } else {
+      openPerspectiveCropper(dataUrl, async (warpedUrl, continueScanning, chosenCorners) => {
+        await addPageToActiveDoc(warpedUrl, dataUrl, chosenCorners);
+        if (continueScanning) {
+          const total = getActiveDoc()?.pages.length || 0;
+          showToast(`Halaman #${total} disimpan! Silakan scan halaman berikutnya.`, 'success');
+        } else {
+          switchView('editor');
+        }
+      }, true, preDetectedCorners);
     }
   }
 
@@ -2431,7 +2450,237 @@
   }
 
   // =========================================================================
-  // 10. EDITOR GAMBAR (FILTER REAL-TIME, SLIDER, ROTATE) & MANAJEMEN HALAMAN
+  // 9. DETEKSI TEPI OTOMATIS (KONTUR TERBESAR + SOBEL CANVAS) & PELURUSAN PERSPEKTIF (BILINEAR + LOUPE)
+  // =========================================================================
+  function detectDocumentCornersFromImageData(data, sw, sh) {
+    // 1. Grayscale & statistik tepi latar (desk/meja)
+    const gray = new Float32Array(sw * sh);
+    let borderSum = 0, borderSqSum = 0, borderCount = 0;
+    let centerSum = 0, centerCount = 0;
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        const i = (y * sw + x) * 4;
+        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        gray[y * sw + x] = g;
+        if (x < 6 || x >= sw - 6 || y < 6 || y >= sh - 6) {
+          borderSum += g;
+          borderSqSum += g * g;
+          borderCount++;
+        } else if (x > sw * 0.25 && x < sw * 0.75 && y > sh * 0.25 && y < sh * 0.75) {
+          centerSum += g;
+          centerCount++;
+        }
+      }
+    }
+    const bgMean = borderCount > 0 ? borderSum / borderCount : 90;
+    const bgStd = borderCount > 0 ? Math.sqrt(Math.max(0, borderSqSum / borderCount - bgMean * bgMean)) : 20;
+    const centerMean = centerCount > 0 ? centerSum / centerCount : 180;
+    const docIsBrighter = centerMean >= bgMean;
+
+    // 2. Gaussian Blur 3x3 untuk meredam noise tekstur meja
+    const blur = new Float32Array(sw * sh);
+    for (let y = 1; y < sh - 1; y++) {
+      for (let x = 1; x < sw - 1; x++) {
+        const idx = y * sw + x;
+        blur[idx] = (
+          gray[idx - sw - 1] + 2 * gray[idx - sw] + gray[idx - sw + 1] +
+          2 * gray[idx - 1] + 4 * gray[idx] + 2 * gray[idx + 1] +
+          gray[idx + sw - 1] + 2 * gray[idx + sw] + gray[idx + sw + 1]
+        ) / 16;
+      }
+    }
+
+    // 3. Masker biner dokumen (memisahkan kertas dari latar meja + Sobel edge)
+    const contrastGap = Math.max(20, Math.min(46, bgStd * 1.3 + 15));
+    const mask = new Uint8Array(sw * sh);
+    for (let y = 2; y < sh - 2; y++) {
+      for (let x = 2; x < sw - 2; x++) {
+        const idx = y * sw + x;
+        const gx = -blur[idx - sw - 1] + blur[idx - sw + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + sw - 1] + blur[idx + sw + 1];
+        const gy = -blur[idx - sw - 1] - 2 * blur[idx - sw] - blur[idx - sw + 1] + blur[idx + sw - 1] + 2 * blur[idx + sw] + blur[idx + sw + 1];
+        const mag = Math.hypot(gx, gy);
+
+        const diffFromBg = docIsBrighter ? (blur[idx] - bgMean) : (bgMean - blur[idx]);
+        if (diffFromBg > contrastGap || (mag > 48 && Math.abs(blur[idx] - bgMean) > 13)) {
+          mask[idx] = 1;
+        }
+      }
+    }
+
+    // 4. Cari komponen terhubung terbesar (Largest Contour / Connected Component) agar kebal noise meja
+    const visited = new Uint8Array(sw * sh);
+    const queue = new Int32Array(sw * sh);
+    let bestSize = 0;
+    let bestBounds = null;
+
+    for (let y = 3; y < sh - 3; y++) {
+      for (let x = 3; x < sw - 3; x++) {
+        const startIdx = y * sw + x;
+        if (!mask[startIdx] || visited[startIdx]) continue;
+
+        let head = 0, tail = 0;
+        queue[tail++] = startIdx;
+        visited[startIdx] = 1;
+
+        let tl = { x: sw, y: sh, score: Infinity };
+        let tr = { x: 0, y: sh, score: -Infinity };
+        let br = { x: 0, y: 0, score: -Infinity };
+        let bl = { x: sw, y: 0, score: Infinity };
+
+        while (head < tail) {
+          const cur = queue[head++];
+          const cy = (cur / sw) | 0;
+          const cx = cur - cy * sw;
+
+          const sum = cx + cy;
+          const diff = cx - cy;
+          if (sum < tl.score) tl = { x: cx, y: cy, score: sum };
+          if (diff > tr.score) tr = { x: cx, y: cy, score: diff };
+          if (sum > br.score) br = { x: cx, y: cy, score: sum };
+          if (diff < bl.score) bl = { x: cx, y: cy, score: diff };
+
+          // 4-tetangga
+          if (cx > 2) { const n = cur - 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cx < sw - 3) { const n = cur + 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cy > 2) { const n = cur - sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cy < sh - 3) { const n = cur + sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+        }
+
+        if (tail > bestSize) {
+          bestSize = tail;
+          bestBounds = [tl, tr, br, bl];
+        }
+      }
+    }
+
+    const defaultQuad = [
+      { x: 0.04, y: 0.04 },
+      { x: 0.96, y: 0.04 },
+      { x: 0.96, y: 0.96 },
+      { x: 0.04, y: 0.96 }
+    ];
+
+    if (!bestBounds || bestSize < sw * sh * 0.08) {
+      return { detected: false, corners: defaultQuad };
+    }
+
+    const pts = bestBounds.map((pt) => ({
+      x: Math.max(0.01, Math.min(0.99, pt.x / sw)),
+      y: Math.max(0.01, Math.min(0.99, pt.y / sh))
+    }));
+
+    // Validasi luas segiempat (Shoelace formula) — minimal 14% dan maksimal 96% luas frame
+    let area = 0;
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4;
+      area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    area = Math.abs(area) * 0.5;
+    if (area < 0.14 || area > 0.96 || pts[1].x <= pts[0].x + 0.14 || pts[2].y <= pts[1].y + 0.14) {
+      return { detected: false, corners: defaultQuad };
+    }
+
+    return { detected: true, corners: pts };
+  }
+
+  function detectDocumentCorners(img) {
+    const sw = 240;
+    const sh = Math.max(80, Math.round((img.height / img.width) * sw));
+    const c = document.createElement('canvas');
+    c.width = sw; c.height = sh;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, sw, sh);
+    const data = ctx.getImageData(0, 0, sw, sh).data;
+    return detectDocumentCornersFromImageData(data, sw, sh).corners;
+  }
+
+  // Pelurusan Perspektif (WarpPerspective) dengan Interpolasi Bilinear agar teks tajam
+  function warpImageWithCorners(img, corners) {
+    const srcPts = corners.map((p) => ({ x: p.x * img.width, y: p.y * img.height }));
+    const wTop = Math.hypot(srcPts[1].x - srcPts[0].x, srcPts[1].y - srcPts[0].y);
+    const wBot = Math.hypot(srcPts[2].x - srcPts[3].x, srcPts[2].y - srcPts[3].y);
+    const hLeft = Math.hypot(srcPts[3].x - srcPts[0].x, srcPts[3].y - srcPts[0].y);
+    const hRight = Math.hypot(srcPts[2].x - srcPts[1].x, srcPts[2].y - srcPts[1].y);
+
+    let dstW = Math.max(200, Math.round(Math.max(wTop, wBot)));
+    let dstH = Math.max(200, Math.round(Math.max(hLeft, hRight)));
+    const maxDim = 1800;
+    if (Math.max(dstW, dstH) > maxDim) {
+      const scale = maxDim / Math.max(dstW, dstH);
+      dstW = Math.round(dstW * scale);
+      dstH = Math.round(dstH * scale);
+    }
+
+    const dstPts = [
+      { x: 0, y: 0 },
+      { x: dstW - 1, y: 0 },
+      { x: dstW - 1, y: dstH - 1 },
+      { x: 0, y: dstH - 1 }
+    ];
+    const H = solveHomography(srcPts, dstPts);
+
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = img.width;
+    srcCanvas.height = img.height;
+    const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
+    srcCtx.drawImage(img, 0, 0);
+    const srcData = srcCtx.getImageData(0, 0, img.width, img.height).data;
+
+    const dstCanvas = document.createElement('canvas');
+    dstCanvas.width = dstW;
+    dstCanvas.height = dstH;
+    const dstCtx = dstCanvas.getContext('2d');
+    const dstImgData = dstCtx.createImageData(dstW, dstH);
+    const dstData = dstImgData.data;
+
+    const sw = img.width;
+    const sh = img.height;
+
+    for (let y = 0; y < dstH; y++) {
+      for (let x = 0; x < dstW; x++) {
+        const denom = H[6] * x + H[7] * y + 1;
+        const sx = (H[0] * x + H[1] * y + H[2]) / denom;
+        const sy = (H[3] * x + H[4] * y + H[5]) / denom;
+        const di = (y * dstW + x) * 4;
+
+        if (sx >= 0 && sx < sw - 1 && sy >= 0 && sy < sh - 1) {
+          const x0 = sx | 0;
+          const y0 = sy | 0;
+          const dx = sx - x0;
+          const dy = sy - y0;
+          const idx00 = (y0 * sw + x0) * 4;
+          const idx10 = idx00 + 4;
+          const idx01 = idx00 + sw * 4;
+          const idx11 = idx01 + 4;
+
+          const w00 = (1 - dx) * (1 - dy);
+          const w10 = dx * (1 - dy);
+          const w01 = (1 - dx) * dy;
+          const w11 = dx * dy;
+
+          dstData[di] = srcData[idx00] * w00 + srcData[idx10] * w10 + srcData[idx01] * w01 + srcData[idx11] * w11;
+          dstData[di + 1] = srcData[idx00 + 1] * w00 + srcData[idx10 + 1] * w10 + srcData[idx01 + 1] * w01 + srcData[idx11 + 1] * w11;
+          dstData[di + 2] = srcData[idx00 + 2] * w00 + srcData[idx10 + 2] * w10 + srcData[idx01 + 2] * w01 + srcData[idx11 + 2] * w11;
+          dstData[di + 3] = 255;
+        } else {
+          dstData[di] = 255; dstData[di + 1] = 255; dstData[di + 2] = 255; dstData[di + 3] = 255;
+        }
+      }
+    }
+
+    dstCtx.putImageData(dstImgData, 0, 0);
+    return dstCanvas.toDataURL('image/jpeg', 0.92);
+  }
+
+  async function autoCropAndDewarpDetailed(dataUrl) {
+    const img = await loadImageObj(dataUrl);
+    const corners = detectDocumentCorners(img);
+    const warpedUrl = warpImageWithCorners(img, corners);
+    return { warpedUrl, corners };
+  }
+
+  // =========================================================================
+  // 10. EDITOR GAMBAR (FILTER, SLIDERS, ROTASI, MANAJEMEN HALAMAN)
   // =========================================================================
   function renderEditorView() {
     const doc = getActiveDoc();
@@ -2439,6 +2688,7 @@
     const indicator = document.getElementById('editor-page-indicator');
     const emptyState = document.getElementById('editor-empty-state');
     const wrapper = document.getElementById('editor-canvas-wrapper');
+    cancelOverlay();
 
     if (!doc) {
       titleInp.value = '';
