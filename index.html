@@ -459,6 +459,11 @@
               <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
               <!-- Efek Kilat Rana Kamera saat Berhasil Terfoto -->
               <div id="camera-shutter-flash" class="hidden absolute inset-0 bg-white pointer-events-none z-30 transition-opacity duration-150 opacity-0"></div>
+              <!-- Indikator Visual Singkat saat Foto Berhasil Diambil -->
+              <div id="camera-captured-badge" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2 rounded-2xl bg-emerald-600/95 text-white text-xs sm:text-sm font-extrabold shadow-2xl flex items-center gap-2 pointer-events-none z-30 transition-all duration-200 scale-95 opacity-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                <span id="camera-captured-text">Terfoto!</span>
+              </div>
 
               <!-- Placeholder saat kamera belum aktif -->
               <div id="camera-placeholder" class="text-center p-6 text-slate-300 max-w-sm">
@@ -521,6 +526,9 @@
                   <button id="btn-toggle-autocapture" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Auto-Capture Stabil">
                     <i data-lucide="focus" class="w-4 h-4"></i>
                     <span class="hidden sm:inline">Auto-Capture</span>
+                  </button>
+                  <button id="btn-toggle-shutter-sound" type="button" class="p-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5" title="Suara Jepretan Kamera: Aktif">
+                    <i data-lucide="volume-2" class="w-4 h-4"></i>
                   </button>
                   <button id="btn-stop-camera" class="hidden p-2.5 rounded-xl bg-rose-600/85 hover:bg-rose-600 text-xs font-semibold" title="Tutup Kamera">
                     <i data-lucide="video-off" class="w-4 h-4"></i>
@@ -940,7 +948,7 @@
             </div>
 
             <div class="flex gap-2">
-              <input id="input-new-apikey" type="password" placeholder="Tempel Gemini API Key (AIza...)"
+              <input id="input-new-apikey" type="password" placeholder="Tempel Gemini API Key (AIza... atau AQ...)"
                 class="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
               <button id="btn-add-apikey" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0">
                 Tambah Key
@@ -1149,6 +1157,7 @@
     batchCount: 0,
     cameraStream: null,
     torchOn: false,
+    shutterSoundEnabled: true,
     autoCaptureEnabled: false,
     autoCaptureTimer: null,
     lastFrameData: null,
@@ -1160,6 +1169,7 @@
     liveDocDetected: false,
     apiKeys: [],
     apiKeyIndex: 0,
+    workingGeminiModel: null,
     deferredPwaPrompt: null,
     cropContext: null, // { img, corners: [{x,y}x4], onDone }
     activeOverlay: null, // { el, dataUrl }
@@ -2238,51 +2248,89 @@
   }
 
   let shutterAudioCtx = null;
-  function playShutterSound() {
+
+  function unlockShutterAudio() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
       if (!shutterAudioCtx) shutterAudioCtx = new AudioCtx();
-      if (shutterAudioCtx.state === 'suspended') shutterAudioCtx.resume();
+      if (shutterAudioCtx.state === 'suspended') {
+        shutterAudioCtx.resume().catch(() => {});
+      }
+    } catch (e) {
+      console.warn('AudioContext unlock dilewati:', e);
+    }
+  }
 
-      const now = shutterAudioCtx.currentTime;
-      // Suara rana kamera (filtered noise burst + klik mekanis halus)
-      const bufferSize = Math.floor(shutterAudioCtx.sampleRate * 0.065);
-      const buffer = shutterAudioCtx.createBuffer(1, bufferSize, shutterAudioCtx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        const env = Math.exp(-i / (bufferSize * 0.22));
-        data[i] = (Math.random() * 2 - 1) * env;
+  function playShutterSound() {
+    if (!state.shutterSoundEnabled) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!shutterAudioCtx) shutterAudioCtx = new AudioCtx();
+      if (shutterAudioCtx.state === 'suspended') {
+        shutterAudioCtx.resume().catch(() => {});
       }
 
-      const noise = shutterAudioCtx.createBufferSource();
-      noise.buffer = buffer;
+      const ctx = shutterAudioCtx;
+      const now = ctx.currentTime;
 
-      const filter = shutterAudioCtx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1850, now);
-      filter.Q.setValueAtTime(1.2, now);
+      // Fungsi pembuat klik rana mekanis ("cek-rek") yang jelas & renyah di speaker HP/Laptop
+      const playClickBurst = (startTime, duration, freq, peakGain) => {
+        const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          const env = Math.exp(-i / (bufferSize * 0.28));
+          data[i] = (Math.random() * 2 - 1) * env;
+        }
 
-      const gain = shutterAudioCtx.createGain();
-      gain.gain.setValueAtTime(0.7, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
 
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(shutterAudioCtx.destination);
-      noise.start(now);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(freq, startTime);
+        filter.Q.setValueAtTime(1.1, startTime);
 
-      const osc = shutterAudioCtx.createOscillator();
-      const oscGain = shutterAudioCtx.createGain();
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(peakGain, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start(startTime);
+      };
+
+      // Tahap 1: Rana buka ("Cek")
+      playClickBurst(now, 0.045, 2400, 1.0);
+      // Tahap 2: Rana tutup ("Rek")
+      playClickBurst(now + 0.055, 0.065, 1650, 0.95);
+
+      // Tambahan body klik mekanis & nada konfirmasi singkat agar terdengar jelas di HP
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(240, now + 0.015);
-      osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
-      oscGain.gain.setValueAtTime(0.3, now + 0.015);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(95, now + 0.055);
+      oscGain.gain.setValueAtTime(0.45, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
       osc.connect(oscGain);
-      oscGain.connect(shutterAudioCtx.destination);
-      osc.start(now + 0.015);
-      osc.stop(now + 0.07);
+      oscGain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.065);
+
+      const beep = ctx.createOscillator();
+      const beepGain = ctx.createGain();
+      beep.type = 'sine';
+      beep.frequency.setValueAtTime(1320, now + 0.075);
+      beepGain.gain.setValueAtTime(0.18, now + 0.075);
+      beepGain.gain.exponentialRampToValueAtTime(0.001, now + 0.145);
+      beep.connect(beepGain);
+      beepGain.connect(ctx.destination);
+      beep.start(now + 0.075);
+      beep.stop(now + 0.15);
     } catch (e) {
       console.warn('Shutter sound dilewati:', e);
     }
@@ -2290,14 +2338,37 @@
 
   function triggerShutterFeedback() {
     playShutterSound();
+    if (navigator.vibrate) {
+      try { navigator.vibrate(45); } catch {}
+    }
+
     const flash = document.getElementById('camera-shutter-flash');
     if (flash) {
       flash.classList.remove('hidden');
-      flash.style.opacity = '0.85';
+      flash.style.opacity = '0.9';
       setTimeout(() => {
         flash.style.opacity = '0';
-        setTimeout(() => flash.classList.add('hidden'), 150);
-      }, 60);
+        setTimeout(() => flash.classList.add('hidden'), 160);
+      }, 75);
+    }
+
+    const badge = document.getElementById('camera-captured-badge');
+    const txt = document.getElementById('camera-captured-text');
+    if (badge) {
+      if (txt) {
+        const nextNum = (getActiveDoc()?.pages.length || 0) + 1;
+        txt.textContent = `Terfoto! (#${nextNum})`;
+      }
+      badge.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        badge.style.opacity = '1';
+        badge.style.transform = 'translate(-50%, -50%) scale(1)';
+      });
+      setTimeout(() => {
+        badge.style.opacity = '0';
+        badge.style.transform = 'translate(-50%, -50%) scale(0.95)';
+        setTimeout(() => badge.classList.add('hidden'), 200);
+      }, 650);
     }
   }
 
@@ -3673,12 +3744,25 @@
       throw new Error('Gemini API Key belum diisi! Silakan tambahkan API Key di menu Pengaturan.');
     }
 
+    // Daftar model Gemini terbaru (otomatis fallback jika model lama tidak tersedia untuk akun baru)
+    const defaultModels = [
+      'gemini-3.0-flash',
+      'gemini-3.8-flash',
+      'gemini-3-flash-preview',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-flash'
+    ];
+    const modelQueue = state.workingGeminiModel
+      ? [state.workingGeminiModel, ...defaultModels.filter((m) => m !== state.workingGeminiModel)]
+      : [...defaultModels];
+
     const totalKeys = state.apiKeys.length;
     let lastError = null;
 
     for (let attempt = 0; attempt < totalKeys; attempt++) {
       const idx = (state.apiKeyIndex + attempt) % totalKeys;
-      const apiKey = state.apiKeys[idx];
+      const apiKey = state.apiKeys[idx].trim();
+      if (!apiKey) continue;
 
       const parts = [{ text: promptText }];
       if (imageBase64) {
@@ -3690,25 +3774,58 @@
         });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-      try {
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts }] })
-        });
-        if (resp.status === 429 || resp.status === 403) {
-          lastError = new Error(`API Key #${idx + 1} limit/ditolak (${resp.status}), mencoba key berikutnya...`);
-          continue;
+      const triedModels = new Set();
+      let queueIndex = 0;
+
+      while (queueIndex < modelQueue.length) {
+        const modelName = modelQueue[queueIndex++];
+        if (!modelName || triedModels.has(modelName)) continue;
+        triedModels.add(modelName);
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        try {
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey
+            },
+            body: JSON.stringify({ contents: [{ parts }] })
+          });
+
+          const json = await resp.json().catch(() => ({}));
+          const apiErrMsg = json?.error?.message || `HTTP ${resp.status}`;
+
+          if (resp.ok) {
+            state.workingGeminiModel = modelName;
+            state.apiKeyIndex = (idx + 1) % totalKeys; // Rotasi otomatis
+            const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (!text) throw new Error('Respon kosong dari Gemini AI.');
+            return text;
+          }
+
+          // Jika limit/kuota habis atau key ditolak -> langsung pindah ke API key berikutnya
+          if (resp.status === 429 || resp.status === 401 || resp.status === 403) {
+            lastError = new Error(`API Key #${idx + 1} (${resp.status}): ${apiErrMsg}`);
+            break;
+          }
+
+          // Jika model sudah tidak tersedia / 404 -> ekstrak rekomendasi model dari pesan Google jika ada, lalu coba model berikutnya
+          if (resp.status === 404 || /no longer available|not found|not supported|update your code to use/i.test(apiErrMsg)) {
+            const suggestedMatch = apiErrMsg.match(/use\s+models\/([a-zA-Z0-9._-]+)/i);
+            if (suggestedMatch && suggestedMatch[1] && !triedModels.has(suggestedMatch[1])) {
+              modelQueue.splice(queueIndex, 0, suggestedMatch[1]);
+            }
+            lastError = new Error(apiErrMsg);
+            continue;
+          }
+
+          lastError = new Error(apiErrMsg);
+          break;
+        } catch (err) {
+          lastError = err;
+          break;
         }
-        const json = await resp.json();
-        if (!resp.ok) throw new Error(json?.error?.message || `HTTP ${resp.status}`);
-        state.apiKeyIndex = (idx + 1) % totalKeys; // Rotasi otomatis
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (!text) throw new Error('Respon kosong dari Gemini AI.');
-        return text;
-      } catch (err) {
-        lastError = err;
       }
     }
     throw lastError || new Error('Semua Gemini API Key gagal dihubungi.');
@@ -3933,32 +4050,77 @@
     };
     document.getElementById('btn-scan-goto-editor').onclick = () => switchView('editor');
     document.getElementById('btn-reset-idcard').onclick = () => setScanMode('idcard');
-    document.getElementById('btn-start-camera').onclick = startCamera;
+    document.getElementById('btn-start-camera').onclick = () => {
+      unlockShutterAudio();
+      startCamera();
+    };
     document.getElementById('btn-stop-camera').onclick = stopCamera;
     document.getElementById('btn-camera-fullscreen').onclick = () => setCameraFullscreen();
     document.getElementById('btn-exit-camera-fs').onclick = () => setCameraFullscreen(false);
     document.getElementById('btn-toggle-torch').onclick = toggleTorch;
-    document.getElementById('btn-toggle-autocapture').onclick = toggleAutoCapture;
-    document.getElementById('btn-capture-photo').onclick = captureFromCamera;
+    document.getElementById('btn-toggle-autocapture').onclick = () => {
+      unlockShutterAudio();
+      toggleAutoCapture();
+    };
+    document.getElementById('btn-toggle-shutter-sound').onclick = () => {
+      state.shutterSoundEnabled = !state.shutterSoundEnabled;
+      const btn = document.getElementById('btn-toggle-shutter-sound');
+      if (btn) {
+        btn.classList.toggle('bg-emerald-600/90', state.shutterSoundEnabled);
+        btn.classList.toggle('hover:bg-emerald-600', state.shutterSoundEnabled);
+        btn.classList.toggle('bg-slate-800', !state.shutterSoundEnabled);
+        btn.classList.toggle('hover:bg-slate-700', !state.shutterSoundEnabled);
+        btn.title = state.shutterSoundEnabled ? 'Suara Jepretan Kamera: Aktif' : 'Suara Jepretan Kamera: Bisu';
+        btn.innerHTML = state.shutterSoundEnabled
+          ? '<i data-lucide="volume-2" class="w-4 h-4"></i>'
+          : '<i data-lucide="volume-x" class="w-4 h-4"></i>';
+        safeCreateIcons();
+      }
+      if (state.shutterSoundEnabled) {
+        unlockShutterAudio();
+        playShutterSound();
+        showToast('Suara jepretan kamera diaktifkan.', 'info');
+      } else {
+        showToast('Suara jepretan kamera dibisukan.', 'info');
+      }
+    };
+    document.getElementById('btn-capture-photo').onclick = () => {
+      unlockShutterAudio();
+      captureFromCamera();
+    };
 
     document.getElementById('input-import-images').onchange = async (e) => {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
       if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
 
-      if (files.length > 1) {
-        showToast(`Mengimpor ${files.length} foto${state.autoCropEnabled ? ' + Auto-Crop otomatis' : ''}...`, 'info');
+      if (files.length === 1) {
+        const rawUrl = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = rej;
+          r.readAsDataURL(files[0]);
+        });
+        await processCapturedImage(rawUrl);
+      } else {
+        showToast(`Mengimpor ${files.length} foto...`, 'info');
         for (const f of files) {
-          const rawUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
-          const normUrl = await normalizeImageDataUrl(rawUrl, 2000, 0.88);
-          const res = state.autoCropEnabled ? await autoCropAndDewarpDetailed(normUrl) : { warpedUrl: normUrl, corners: null };
-          await addPageToActiveDoc(res.warpedUrl, normUrl, res.corners);
+          const rawUrl = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.onerror = rej;
+            r.readAsDataURL(f);
+          });
+          const normalized = await normalizeImageDataUrl(rawUrl, 2000, 0.88);
+          if (state.autoCropEnabled && state.scanMode === 'document') {
+            const res = await autoCropAndDewarpDetailed(normalized);
+            await addPageToActiveDoc(res.warpedUrl, normalized, res.corners);
+          } else {
+            await addPageToActiveDoc(normalized, normalized, null);
+          }
         }
         showToast(`${files.length} foto berhasil ditambahkan ke dokumen!`, 'success');
         if (!state.batchMode) switchView('editor');
-      } else {
-        const rawUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(files[0]); });
-        await processCapturedImage(rawUrl);
       }
       e.target.value = '';
     };
@@ -4174,7 +4336,12 @@
       const inp = document.getElementById('input-new-apikey');
       const val = inp.value.trim();
       if (!val) return showToast('Masukkan API Key yang valid.', 'warning');
+      if (state.apiKeys.includes(val)) {
+        inp.value = '';
+        return showToast('API Key tersebut sudah ada di daftar.', 'warning');
+      }
       state.apiKeys.push(val);
+      state.workingGeminiModel = null;
       inp.value = '';
       persistApiKeys();
       showToast('Gemini API Key berhasil ditambahkan!', 'success');
@@ -4183,7 +4350,8 @@
       try {
         showToast('Menguji koneksi Gemini AI...', 'info');
         const res = await callGeminiWithRotation('Balas dengan satu kata: OK');
-        showToast('Koneksi Gemini AI Berhasil: ' + res.slice(0, 20), 'success');
+        const modelInfo = state.workingGeminiModel ? ` (${state.workingGeminiModel})` : '';
+        showToast(`Koneksi Gemini AI Berhasil${modelInfo}: ${res.slice(0, 20)}`, 'success');
       } catch (err) {
         showToast(err.message, 'error');
       }
