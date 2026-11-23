@@ -48,6 +48,7 @@
     #alfian-scan-root {
       position: fixed;
       inset: 0;
+      height: 100dvh;
       z-index: 999999;
       overflow: hidden;
       display: flex;
@@ -88,7 +89,7 @@
       display: flex;
     }
     .main-content-area {
-      padding-bottom: 84px;
+      padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
     }
     @media (min-width: 768px) {
       .desktop-sidebar {
@@ -98,8 +99,29 @@
         display: none;
       }
       .main-content-area {
-        padding-bottom: 24px;
+        padding-bottom: 28px;
       }
+    }
+
+    /* Mode Kamera Layar Penuh di HP agar lebih leluasa */
+    .camera-card-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 65 !important;
+      border-radius: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      height: 100dvh !important;
+      background: #020617 !important;
+    }
+    .camera-card-fullscreen .camera-viewport-box {
+      flex: 1 1 auto !important;
+      aspect-ratio: auto !important;
+      max-height: none !important;
+      height: 100% !important;
+    }
+    .camera-card-fullscreen .camera-controls-bar {
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     /* Custom Scrollbar */
@@ -308,35 +330,35 @@
     <!-- AREA KONTEN UTAMA -->
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
       <!-- Header Mobile & Status Bar -->
-      <header class="glass-panel border-b border-slate-200/70 dark:border-slate-800 px-4 py-3 flex items-center justify-between gap-3 shrink-0 z-10">
-        <div class="flex items-center gap-2.5 min-w-0">
+      <header class="glass-panel border-b border-slate-200/70 dark:border-slate-800 px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 shrink-0 z-10">
+        <div class="flex items-center gap-2 min-w-0">
           <div class="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0">
             <i data-lucide="scan-line" class="w-4 h-4"></i>
           </div>
           <div class="min-w-0">
-            <h1 id="header-view-title" class="text-base sm:text-lg font-extrabold tracking-tight truncate">Dokumen Saya</h1>
-            <p id="header-active-doc" class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Siap memindai dokumen PDF</p>
+            <h1 id="header-view-title" class="text-sm sm:text-lg font-extrabold tracking-tight truncate">Dokumen Saya</h1>
+            <p id="header-active-doc" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Siap memindai dokumen PDF</p>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <span id="offline-indicator" class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
           </span>
-          <button id="btn-quick-new-scan" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+          <button id="btn-quick-new-scan" class="px-2.5 py-1.5 sm:px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
             <span class="hidden sm:inline">Scan Baru</span>
           </button>
-          <button id="btn-theme-mobile" class="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <button id="btn-theme-mobile" class="md:hidden p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
             <i data-lucide="sun-moon" class="w-4 h-4"></i>
           </button>
-          <button id="btn-logout-mobile" class="md:hidden p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600">
+          <button id="btn-logout-mobile" class="md:hidden p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600">
             <i data-lucide="log-out" class="w-4 h-4"></i>
           </button>
         </div>
       </header>
 
       <!-- Kontainer Scrollable untuk Semua View -->
-      <main class="flex-1 overflow-y-auto p-4 sm:p-6 main-content-area">
+      <main class="flex-1 overflow-y-auto px-3 py-3 sm:p-6 main-content-area">
 
         <!-- ==================== VIEW 1: BERANDA / DOKUMEN SAYA ==================== -->
         <section id="view-home" class="app-view space-y-5 max-w-6xl mx-auto">
@@ -384,40 +406,40 @@
         </section>
 
         <!-- ==================== VIEW 2: PINDAI (KAMERA, GALERI, PDF IMPOR) ==================== -->
-        <section id="view-scan" class="app-view hidden space-y-5 max-w-5xl mx-auto">
+        <section id="view-scan" class="app-view hidden space-y-3 sm:space-y-5 max-w-5xl mx-auto">
           <!-- Pilihan Mode Pemindaian Khusus -->
-          <div class="glass-card rounded-2xl p-4">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <h3 class="text-sm font-extrabold flex items-center gap-2">
+          <div class="glass-card rounded-2xl p-3 sm:p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+              <h3 class="text-xs sm:text-sm font-extrabold flex items-center gap-1.5">
                 <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
-                Pilih Mode Pemindaian
+                Mode Pemindaian
               </h3>
-              <div class="flex flex-wrap items-center gap-3">
-                <label class="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <label class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold cursor-pointer">
                   <input id="toggle-auto-crop" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500" />
-                  <span>Auto-Crop & Luruskan Otomatis</span>
+                  <span>Auto-Crop</span>
                 </label>
-                <label class="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                <label class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold cursor-pointer">
                   <input id="toggle-batch-scan" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500" />
-                  <span>Mode Multi-Halaman</span>
+                  <span>Multi-Halaman</span>
                 </label>
               </div>
             </div>
             <div class="grid grid-cols-3 gap-2">
-              <button data-scan-mode="document" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/50">
-                <i data-lucide="file-text" class="w-5 h-5 text-emerald-600 mb-1"></i>
-                <p class="text-xs font-bold">Dokumen</p>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400">Auto-edge & 4 titik</p>
+              <button data-scan-mode="document" class="scan-mode-btn p-2 sm:p-3 rounded-xl border-2 text-left transition border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/50">
+                <i data-lucide="file-text" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 mb-1"></i>
+                <p class="text-[11px] sm:text-xs font-bold leading-tight">Dokumen</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Auto-edge</p>
               </button>
-              <button data-scan-mode="idcard" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-slate-200 dark:border-slate-700 hover:border-emerald-300">
-                <i data-lucide="credit-card" class="w-5 h-5 text-teal-600 mb-1"></i>
-                <p class="text-xs font-bold">ID Card / KTP</p>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400">Depan + Belakang A4</p>
+              <button data-scan-mode="idcard" class="scan-mode-btn p-2 sm:p-3 rounded-xl border-2 text-left transition border-slate-200 dark:border-slate-700 hover:border-emerald-300">
+                <i data-lucide="credit-card" class="w-4 h-4 sm:w-5 sm:h-5 text-teal-600 mb-1"></i>
+                <p class="text-[11px] sm:text-xs font-bold leading-tight">ID / KTP</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Depan + Blkg</p>
               </button>
-              <button data-scan-mode="book" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-slate-200 dark:border-slate-700 hover:border-emerald-300">
-                <i data-lucide="book-open" class="w-5 h-5 text-sky-600 mb-1"></i>
-                <p class="text-xs font-bold">Mode Buku</p>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400">Belah 2 halaman</p>
+              <button data-scan-mode="book" class="scan-mode-btn p-2 sm:p-3 rounded-xl border-2 text-left transition border-slate-200 dark:border-slate-700 hover:border-emerald-300">
+                <i data-lucide="book-open" class="w-4 h-4 sm:w-5 sm:h-5 text-sky-600 mb-1"></i>
+                <p class="text-[11px] sm:text-xs font-bold leading-tight">Buku</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Belah 2 hal.</p>
               </button>
             </div>
 
@@ -432,8 +454,8 @@
           </div>
 
           <!-- Area Kamera Langsung -->
-          <div class="glass-card rounded-3xl overflow-hidden relative bg-slate-950">
-            <div class="relative aspect-[3/4] sm:aspect-video max-h-[62vh] w-full bg-slate-950 flex items-center justify-center overflow-hidden">
+          <div id="camera-card-container" class="glass-card rounded-2xl sm:rounded-3xl overflow-hidden relative bg-slate-950">
+            <div class="camera-viewport-box relative aspect-[4/5] sm:aspect-video max-h-[58dvh] sm:max-h-[62vh] w-full bg-slate-950 flex items-center justify-center overflow-hidden">
               <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
 
               <!-- Placeholder saat kamera belum aktif -->
@@ -454,9 +476,9 @@
                 <!-- Kanvas Deteksi Tepi Kertas Real-Time (Bergerak Mengikuti Ujung Kertas) -->
                 <canvas id="camera-live-edge-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
                 <!-- Indikator Status Deteksi Kertas Live -->
-                <div id="live-edge-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/65 backdrop-blur-sm text-white text-[11px] font-bold flex items-center gap-1.5 shadow">
-                  <span id="live-edge-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
-                  <span id="live-edge-text">Mencari tepi kertas...</span>
+                <div id="live-edge-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[10px] sm:text-[11px] font-bold flex items-center gap-1.5 shadow whitespace-nowrap max-w-[92%]">
+                  <span id="live-edge-dot" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span id="live-edge-text" class="truncate">Mencari tepi kertas...</span>
                 </div>
                 <div id="guide-box-doc" class="hidden w-full h-full border-2 border-emerald-400/70 rounded-xl relative">
                   <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
@@ -469,47 +491,64 @@
               </div>
 
               <!-- Indikator Stabilitas Auto-Capture -->
-              <div id="auto-capture-status" class="hidden absolute top-3 left-3 px-3 py-1.5 rounded-full bg-black/65 text-white text-[11px] font-bold flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 auto-capture-ring"></span>
+              <div id="auto-capture-status" class="hidden absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/70 text-white text-[10px] sm:text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 auto-capture-ring shrink-0"></span>
                 <span id="auto-capture-text">Menunggu stabil...</span>
               </div>
 
-              <!-- Indikator Batch Counter -->
-              <button id="btn-finish-batch" class="hidden absolute top-3 right-3 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-lg flex items-center gap-1.5">
-                <span id="batch-count-badge">0</span> Halaman • Selesai &rarr;
-              </button>
-            </div>
-
-            <!-- Kontrol Kamera & Impor -->
-            <div class="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
-              <div class="flex items-center gap-2">
-                <button id="btn-toggle-torch" disabled class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold flex items-center gap-1.5" title="Flash / Torch">
-                  <i data-lucide="zap" class="w-4 h-4"></i>
-                  <span class="hidden sm:inline">Flash</span>
+              <!-- Indikator Batch Counter & Tombol Layar Penuh -->
+              <div class="absolute top-3 right-3 flex items-center gap-1.5 z-20">
+                <button id="btn-finish-batch" class="hidden px-2.5 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-lg flex items-center gap-1 whitespace-nowrap">
+                  <span id="batch-count-badge">0</span> Hal • Selesai &rarr;
                 </button>
-                <button id="btn-toggle-autocapture" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Auto-Capture Stabil">
-                  <i data-lucide="focus" class="w-4 h-4"></i>
-                  <span class="hidden sm:inline">Auto-Capture</span>
-                </button>
-                <button id="btn-stop-camera" class="hidden p-2.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-xs font-semibold">
-                  <i data-lucide="video-off" class="w-4 h-4"></i>
+                <button id="btn-camera-fullscreen" type="button" class="p-2 rounded-full bg-black/65 hover:bg-black/80 text-white shadow-lg transition" title="Mode Layar Penuh Kamera">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
+            </div>
 
-              <!-- Tombol Jepret Utama -->
-              <button id="btn-capture-photo" disabled class="w-16 h-16 rounded-full border-4 border-white bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 flex items-center justify-center shadow-lg transition active:scale-95">
-                <div class="w-12 h-12 rounded-full border-2 border-emerald-200/70"></div>
-              </button>
+            <!-- Kontrol Kamera & Impor (Tata Letak Ergonomis untuk HP & Desktop) -->
+            <div class="camera-controls-bar px-3 py-3 sm:p-4 bg-slate-900 text-white space-y-2.5 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-3">
+              <!-- Baris Utama Kontrol Kamera (Kiri: Flash/Auto/Stop, Tengah: Shutter, Kanan: Impor cepat di desktop) -->
+              <div class="grid grid-cols-3 items-center gap-2 sm:flex sm:items-center sm:flex-1 sm:justify-between">
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                  <button id="btn-toggle-torch" disabled class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold flex items-center gap-1.5" title="Flash / Torch">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Flash</span>
+                  </button>
+                  <button id="btn-toggle-autocapture" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Auto-Capture Stabil">
+                    <i data-lucide="focus" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Auto-Capture</span>
+                  </button>
+                  <button id="btn-stop-camera" class="hidden p-2.5 rounded-xl bg-rose-600/85 hover:bg-rose-600 text-xs font-semibold" title="Tutup Kamera">
+                    <i data-lucide="video-off" class="w-4 h-4"></i>
+                  </button>
+                </div>
 
-              <!-- Tombol Impor Galeri & PDF -->
-              <div class="flex items-center gap-2">
-                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Bisa pilih banyak foto sekaligus">
-                  <i data-lucide="image" class="w-4 h-4 text-emerald-400"></i>
+                <!-- Tombol Jepret Utama (Persis di Tengah di HP) -->
+                <div class="flex justify-center">
+                  <button id="btn-capture-photo" disabled class="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-white bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 flex items-center justify-center shadow-lg transition active:scale-95">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-emerald-200/70"></div>
+                  </button>
+                </div>
+
+                <!-- Spacer kanan untuk menyeimbangkan grid 3 kolom di HP; disembunyikan di desktop -->
+                <div class="flex justify-end sm:hidden">
+                  <button id="btn-exit-camera-fs" type="button" class="hidden px-2.5 py-2 rounded-xl bg-slate-800 text-[11px] font-bold text-slate-200">
+                    Tutup Full
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tombol Impor Galeri & PDF (2 Kolom Penuh di HP agar mudah disentuh) -->
+              <div class="grid grid-cols-2 sm:flex items-center gap-2">
+                <label class="cursor-pointer px-3 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap" title="Bisa pilih banyak foto sekaligus">
+                  <i data-lucide="image" class="w-4 h-4 text-emerald-400 shrink-0"></i>
                   <span>Galeri (Multi)</span>
                   <input id="input-import-images" type="file" accept="image/*" multiple class="hidden" />
                 </label>
-                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Bisa pilih banyak file PDF sekaligus">
-                  <i data-lucide="file-up" class="w-4 h-4 text-sky-400"></i>
+                <label class="cursor-pointer px-3 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap" title="Bisa pilih banyak file PDF sekaligus">
+                  <i data-lucide="file-up" class="w-4 h-4 text-sky-400 shrink-0"></i>
                   <span>Impor PDF</span>
                   <input id="input-import-pdf" type="file" accept="application/pdf" multiple class="hidden" />
                 </label>
@@ -518,17 +557,17 @@
           </div>
 
           <!-- Antrean / Filmstrip Halaman Scan Aktif (Multi-Halaman Tak Terbatas) -->
-          <div id="scan-filmstrip-panel" class="glass-card rounded-2xl p-4 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-2">
+          <div id="scan-filmstrip-panel" class="glass-card rounded-2xl p-3 sm:p-4 space-y-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div class="flex items-center gap-2">
-                <i data-lucide="files" class="w-4 h-4 text-emerald-600"></i>
-                <h4 class="text-xs font-extrabold">Halaman Terkumpul di Dokumen Aktif (<span id="scan-filmstrip-count">0</span> Halaman)</h4>
+                <i data-lucide="files" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                <h4 class="text-xs font-extrabold">Terkumpul di Dokumen Aktif (<span id="scan-filmstrip-count">0</span> Hal.)</h4>
               </div>
-              <div class="flex items-center gap-2">
-                <button id="btn-scan-new-doc" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition">
+              <div class="grid grid-cols-2 sm:flex items-center gap-2">
+                <button id="btn-scan-new-doc" type="button" class="px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition text-center whitespace-nowrap">
                   + Dokumen Baru
                 </button>
-                <button id="btn-scan-goto-editor" type="button" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition">
+                <button id="btn-scan-goto-editor" type="button" class="px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition whitespace-nowrap">
                   <span>Edit & Buat PDF</span>
                   <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
                 </button>
@@ -541,23 +580,23 @@
         </section>
 
         <!-- ==================== VIEW 3: EDITOR, FILTER, TANDA TANGAN & MANAJEMEN HALAMAN ==================== -->
-        <section id="view-editor" class="app-view hidden space-y-5 max-w-6xl mx-auto">
+        <section id="view-editor" class="app-view hidden space-y-4 sm:space-y-5 max-w-6xl mx-auto">
           <!-- Bar Judul Proyek -->
-          <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div class="flex-1 flex items-center gap-2">
-              <i data-lucide="file-edit" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+          <div class="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
               <input id="editor-doc-title" type="text" placeholder="Nama Dokumen..."
-                class="w-full bg-transparent font-bold text-sm sm:text-base focus:outline-none border-b border-transparent focus:border-emerald-500 py-0.5" />
+                class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <button id="btn-auto-rename" type="button" title="Ubah nama otomatis berdasarkan tanggal"
+                class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-slate-600 dark:text-slate-300 shrink-0">
+                <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+              </button>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <button id="btn-auto-rename" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition">
-                Nama Otomatis
+            <div class="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+              <button id="btn-add-more-pages" type="button" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-emerald-600"></i> Tambah Hal
               </button>
-              <button id="btn-add-more-pages" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center gap-1">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Halaman
-              </button>
-              <button id="btn-goto-ai-export" class="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold flex items-center gap-1">
-                <span>AI & Ekspor PDF</span> <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              <button id="btn-goto-ai-export" type="button" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap">
+                <i data-lucide="file-down" class="w-3.5 h-3.5"></i> AI & Ekspor PDF
               </button>
             </div>
           </div>
@@ -566,17 +605,17 @@
             <!-- Kolom Kiri: Pratinjau Kanvas & Overlay Tanda Tangan/Stempel -->
             <div class="lg:col-span-7 space-y-4">
               <div class="glass-card rounded-2xl p-3 sm:p-4">
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                   <span id="editor-page-indicator" class="text-xs font-bold text-slate-500">Halaman 0 / 0</span>
-                  <div class="flex items-center gap-1.5">
-                    <button id="btn-auto-crop-page" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1 hover:bg-emerald-100" title="Deteksi tepi & luruskan perspektif otomatis">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <button id="btn-auto-crop-page" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1 hover:bg-emerald-100 whitespace-nowrap" title="Deteksi tepi & luruskan perspektif otomatis">
                       <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Auto-Crop
                     </button>
-                    <button id="btn-open-cropper" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600">
+                    <button id="btn-open-cropper" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600 whitespace-nowrap">
                       <i data-lucide="crop" class="w-3.5 h-3.5"></i> Crop 4 Titik
                     </button>
-                    <button id="btn-rotate-page" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600">
-                      <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar 90°
+                    <button id="btn-rotate-page" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600 whitespace-nowrap">
+                      <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar
                     </button>
                     <button id="btn-delete-page" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 text-xs font-semibold flex items-center gap-1">
                       <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -702,10 +741,10 @@
         </section>
 
         <!-- ==================== VIEW 4: AI STUDIO (OCR & GEMINI) & EKSPOR PDF ==================== -->
-        <section id="view-ai" class="app-view hidden space-y-5 max-w-6xl mx-auto">
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <section id="view-ai" class="app-view hidden space-y-4 sm:space-y-5 max-w-6xl mx-auto">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
             <!-- Panel Ekspor PDF, Kompresi, Password, Share & Print -->
-            <div class="lg:col-span-5 glass-card rounded-2xl p-5 space-y-4">
+            <div class="lg:col-span-5 glass-card rounded-2xl p-4 sm:p-5 space-y-4">
               <div class="flex items-center gap-2">
                 <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center">
                   <i data-lucide="file-down" class="w-5 h-5"></i>
@@ -814,7 +853,7 @@
             </div>
 
             <!-- Panel OCR Offline & Gemini AI -->
-            <div class="lg:col-span-7 glass-card rounded-2xl p-5 space-y-4">
+            <div class="lg:col-span-7 glass-card rounded-2xl p-4 sm:p-5 space-y-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
                   <div class="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-900/50 text-teal-600 flex items-center justify-center">
@@ -865,17 +904,17 @@
 
               <!-- Output Teks / Tabel HTML -->
               <div>
-                <div class="flex items-center justify-between mb-1.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <span class="text-xs font-bold text-slate-500">Hasil Ekstraksi / Analisis AI</span>
-                  <div class="flex items-center gap-1.5">
-                    <button id="btn-copy-ai-result" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-bold">Salin</button>
-                    <button id="btn-export-word" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">Word (.doc)</button>
-                    <button id="btn-export-excel" class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold">Excel (.xlsx)</button>
+                  <div class="grid grid-cols-3 sm:flex items-center gap-1.5">
+                    <button id="btn-copy-ai-result" class="px-2.5 py-1.5 sm:py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-bold whitespace-nowrap text-center">Salin</button>
+                    <button id="btn-export-word" class="px-2.5 py-1.5 sm:py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold whitespace-nowrap text-center">Word (.doc)</button>
+                    <button id="btn-export-excel" class="px-2.5 py-1.5 sm:py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold whitespace-nowrap text-center">Excel (.xlsx)</button>
                   </div>
                 </div>
                 <div id="ai-html-preview" class="hidden mb-2 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-48 overflow-auto text-xs prose dark:prose-invert max-w-none"></div>
                 <textarea id="ai-result-textarea" rows="8" placeholder="Hasil OCR offline, ekstrak tabel AI, ringkasan, atau terjemahan akan tampil di sini..."
-                  class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                  class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
               </div>
             </div>
           </div>
@@ -928,21 +967,21 @@
     </div>
 
     <!-- BOTTOM NAVIGATION BAR MOBILE (MELAYANG DI BAWAH) -->
-    <nav id="mobile-bottom-nav" class="mobile-bottom-nav fixed bottom-3 left-3 right-3 glass-panel rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-700 px-2 py-1.5 items-center justify-around z-40">
-      <button data-view="home" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
-        <i data-lucide="folder-open" class="w-5 h-5"></i><span>Dokumen</span>
+    <nav id="mobile-bottom-nav" class="mobile-bottom-nav fixed bottom-2 left-2.5 right-2.5 glass-panel rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-700 px-1.5 py-1 items-center justify-around z-40">
+      <button data-view="home" class="nav-btn flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="folder-open" class="w-4 h-4"></i><span>Dokumen</span>
       </button>
-      <button data-view="scan" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
-        <i data-lucide="camera" class="w-5 h-5"></i><span>Pindai</span>
+      <button data-view="scan" class="nav-btn flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="camera" class="w-4 h-4"></i><span>Pindai</span>
       </button>
-      <button data-view="editor" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
-        <i data-lucide="sliders-horizontal" class="w-5 h-5"></i><span>Editor</span>
+      <button data-view="editor" class="nav-btn flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i><span>Editor</span>
       </button>
-      <button data-view="ai" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
-        <i data-lucide="sparkles" class="w-5 h-5"></i><span>AI & PDF</span>
+      <button data-view="ai" class="nav-btn flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="sparkles" class="w-4 h-4"></i><span>AI & PDF</span>
       </button>
-      <button data-view="settings" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
-        <i data-lucide="settings" class="w-5 h-5"></i><span>Setelan</span>
+      <button data-view="settings" class="nav-btn flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="settings" class="w-4 h-4"></i><span>Setelan</span>
       </button>
     </nav>
   </div>
@@ -1774,6 +1813,7 @@
   }
 
   function stopCamera() {
+    setCameraFullscreen(false);
     stopLiveEdgeTracking();
     if (state.autoCaptureTimer) {
       clearInterval(state.autoCaptureTimer);
@@ -1796,19 +1836,44 @@
     const capBtn = document.getElementById('btn-capture-photo');
     if (capBtn) capBtn.disabled = true;
     const torchBtn = document.getElementById('btn-toggle-torch');
-    if (torchBtn) torchBtn.disabled = true;
+    if (torchBtn) {
+      torchBtn.disabled = true;
+      torchBtn.classList.remove('bg-amber-500', 'text-slate-950');
+    }
     document.getElementById('btn-stop-camera')?.classList.add('hidden');
   }
 
   async function toggleTorch() {
     if (!state.cameraStream) return;
     const track = state.cameraStream.getVideoTracks()[0];
+    if (!track) return;
     try {
       state.torchOn = !state.torchOn;
       await track.applyConstraints({ advanced: [{ torch: state.torchOn }] });
-      showToast(state.torchOn ? 'Flash menyala' : 'Flash mati', 'info');
-    } catch {
-      showToast('Perangkat ini tidak mendukung kontrol Flash dari browser.', 'warning');
+      const torchBtn = document.getElementById('btn-toggle-torch');
+      if (torchBtn) {
+        torchBtn.classList.toggle('bg-amber-500', state.torchOn);
+        torchBtn.classList.toggle('text-slate-950', state.torchOn);
+      }
+    } catch (err) {
+      state.torchOn = false;
+      showToast('Flash/Torch tidak didukung oleh perangkat ini.', 'warning');
+    }
+  }
+
+  function setCameraFullscreen(enable) {
+    const card = document.getElementById('camera-card-container');
+    const fsBtn = document.getElementById('btn-camera-fullscreen');
+    const exitBtn = document.getElementById('btn-exit-camera-fs');
+    if (!card) return;
+    const isFull = enable !== undefined ? Boolean(enable) : !card.classList.contains('camera-card-fullscreen');
+    card.classList.toggle('camera-card-fullscreen', isFull);
+    if (exitBtn) exitBtn.classList.toggle('hidden', !isFull);
+    if (fsBtn) {
+      fsBtn.innerHTML = isFull
+        ? '<i data-lucide="minimize-2" class="w-3.5 h-3.5"></i>'
+        : '<i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>';
+      safeCreateIcons();
     }
   }
 
@@ -3807,6 +3872,8 @@
     document.getElementById('btn-reset-idcard').onclick = () => setScanMode('idcard');
     document.getElementById('btn-start-camera').onclick = startCamera;
     document.getElementById('btn-stop-camera').onclick = stopCamera;
+    document.getElementById('btn-camera-fullscreen').onclick = () => setCameraFullscreen();
+    document.getElementById('btn-exit-camera-fs').onclick = () => setCameraFullscreen(false);
     document.getElementById('btn-toggle-torch').onclick = toggleTorch;
     document.getElementById('btn-toggle-autocapture').onclick = toggleAutoCapture;
     document.getElementById('btn-capture-photo').onclick = captureFromCamera;
