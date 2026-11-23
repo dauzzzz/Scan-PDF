@@ -1,0 +1,3166 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Alfian Scan Pro — Pemindai Dokumen PDF & AI</title>
+  <meta name="description" content="Aplikasi PWA Pemindai Dokumen PDF Modern dengan AI OCR, Perspective Warp, dan Sinkronisasi Supabase oleh alfian tech." />
+  <meta name="theme-color" content="#059669" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Alfian Scan Pro" />
+
+  <!-- Manifest PWA dinamis akan diperbarui oleh JS dengan ikon PNG beresolusi 192 & 512 agar valid untuk Add to Home Screen Android -->
+  <link id="pwa-manifest-link" rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Alfian%20Scan%20Pro%22%2C%22short_name%22%3A%22AlfianScan%22%2C%22display%22%3A%22standalone%22%2C%22theme_color%22%3A%22%23059669%22%2C%22background_color%22%3A%22%23ffffff%22%7D" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            emerald: {
+              50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7',
+              400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857',
+              800: '#065f46', 900: '#064e3b'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Pustaka Eksternal CDN: jsPDF, PDF.js, Tesseract.js, SheetJS, Lucide Icons -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Full-Page Overlay agar menutupi elemen bawaan Blogger tanpa edit XML */
+    #alfian-scan-root {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Glassmorphism & Scrollbar */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+    }
+    .dark .glass-panel {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(51, 65, 85, 0.65);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.05);
+    }
+    .dark .glass-card {
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Tata Letak Responsif Wajib: Sidebar Desktop & Bottom Nav Mobile */
+    .desktop-sidebar {
+      display: none;
+    }
+    .mobile-bottom-nav {
+      display: flex;
+    }
+    .main-content-area {
+      padding-bottom: 84px;
+    }
+    @media (min-width: 768px) {
+      .desktop-sidebar {
+        display: flex;
+      }
+      .mobile-bottom-nav {
+        display: none;
+      }
+      .main-content-area {
+        padding-bottom: 24px;
+      }
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.45);
+      border-radius: 9999px;
+    }
+
+    /* Crop Handle & Overlay */
+    .crop-handle {
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.92);
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+      position: absolute;
+      transform: translate(-50%, -50%);
+      touch-action: none;
+      cursor: grab;
+      z-index: 30;
+    }
+    .crop-handle:active {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(1.2);
+      background: #047857;
+    }
+
+    /* Draggable Signature/Stamp Overlay */
+    .doc-overlay-item {
+      position: absolute;
+      cursor: move;
+      touch-action: none;
+      border: 1.5px dashed #10b981;
+      user-select: none;
+    }
+
+    /* Animations */
+    @keyframes pulseRing {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      70% { transform: scale(1.1); opacity: 0.2; }
+      100% { transform: scale(0.95); opacity: 0.7; }
+    }
+    .auto-capture-ring {
+      animation: pulseRing 1.4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased">
+
+<div id="alfian-scan-root" class="bg-gradient-to-br from-emerald-50/70 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/30">
+
+  <!-- ==================== BANNER MODE PREVIEW (HILANG 100% SAAT IS_PREVIEW = false) ==================== -->
+  <div id="preview-banner" class="hidden bg-amber-500 text-slate-950 text-xs font-semibold px-4 py-1.5 flex items-center justify-between gap-2 z-50 shrink-0 shadow-sm">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-2 h-2 rounded-full bg-slate-950 animate-pulse"></span>
+      <span>Mode Preview Aktif — Menggunakan memori lokal browser (tanpa koneksi Supabase).</span>
+    </div>
+    <span class="hidden sm:inline opacity-80">Ubah IS_PREVIEW = false untuk produksi</span>
+  </div>
+
+  <!-- ==================== HALAMAN LOGIN GLASSMORPHISM ==================== -->
+  <section id="auth-screen" class="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="w-full max-w-md glass-card rounded-3xl p-6 sm:p-8 relative overflow-hidden">
+      <div class="absolute -top-20 -right-20 w-44 h-44 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-20 -left-20 w-44 h-44 bg-teal-400/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Logo & Brand -->
+      <div class="text-center mb-6 relative">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 mb-3">
+          <i data-lucide="scan-line" class="w-9 h-9"></i>
+        </div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Alfian Scan Pro</h1>
+        <p class="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">oleh alfian tech • Pemindai PDF & AI</p>
+      </div>
+
+      <!-- Switch Role Login (Hybrid: Admin vs User/Operator) -->
+      <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-5">
+        <button id="tab-login-user" type="button" class="py-2 text-xs font-bold rounded-lg transition-all bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm">
+          User / Operator
+        </button>
+        <button id="tab-login-admin" type="button" class="py-2 text-xs font-bold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800">
+          Admin (Supabase)
+        </button>
+      </div>
+
+      <!-- Form Login -->
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label id="login-id-label" for="login-identifier" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Username / ID</label>
+          <input id="login-identifier" type="text" required autocomplete="username" placeholder="Masukkan username Anda"
+            class="w-full px-4 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div>
+          <label for="login-password" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Password</label>
+          <input id="login-password" type="password" required autocomplete="current-password" placeholder="••••••••"
+            class="w-full px-4 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <button id="btn-login-submit" type="submit"
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span>Masuk ke Aplikasi</span>
+        </button>
+      </form>
+
+      <!-- Tombol Pintas Preview (HANYA MUNCUL JIKA IS_PREVIEW = true) -->
+      <div id="preview-quick-login" class="hidden mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <p class="text-[11px] font-semibold text-center text-amber-600 dark:text-amber-400 mb-2.5 uppercase tracking-wider">Pintasan Uji Coba (Mode Preview)</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btn-quick-admin" type="button" class="py-2 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 text-xs font-bold transition">
+            Masuk Cepat Admin
+          </button>
+          <button id="btn-quick-user" type="button" class="py-2 px-3 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs font-bold transition">
+            Masuk Cepat User
+          </button>
+        </div>
+      </div>
+
+      <!-- Tombol Install PWA di Layar Login -->
+      <div class="mt-5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <button id="btn-install-pwa-login" type="button" class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span>Install di HP (PWA)</span>
+        </button>
+        <button id="btn-theme-login" type="button" class="inline-flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+          <i data-lucide="moon" class="w-3.5 h-3.5"></i>
+          <span>Tema</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SHELL APLIKASI UTAMA (SETELAH LOGIN) ==================== -->
+  <div id="app-shell" class="hidden flex-1 flex overflow-hidden relative">
+
+    <!-- SIDEBAR DESKTOP (Fixed Kiri) -->
+    <aside class="desktop-sidebar w-64 shrink-0 glass-panel border-r border-slate-200/80 dark:border-slate-800 flex-col justify-between p-4 z-20">
+      <div>
+        <div class="flex items-center gap-3 px-2 py-2 mb-6">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+            <i data-lucide="scan-line" class="w-5 h-5"></i>
+          </div>
+          <div class="min-w-0">
+            <h2 class="font-extrabold text-sm text-slate-900 dark:text-white truncate">Alfian Scan Pro</h2>
+            <p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">by alfian tech</p>
+          </div>
+        </div>
+
+        <nav class="space-y-1.5" id="desktop-nav">
+          <button data-view="home" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+            <i data-lucide="folder-open" class="w-4 h-4"></i><span>Dokumen Saya</span>
+          </button>
+          <button data-view="scan" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+            <i data-lucide="camera" class="w-4 h-4"></i><span>Pindai & Impor</span>
+          </button>
+          <button data-view="editor" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i><span>Editor & Halaman</span>
+          </button>
+          <button data-view="ai" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+            <i data-lucide="sparkles" class="w-4 h-4"></i><span>AI Studio & Ekspor</span>
+          </button>
+          <button data-view="settings" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+            <i data-lucide="settings" class="w-4 h-4"></i><span>Pengaturan & Admin</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="space-y-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+        <button id="btn-install-pwa-sidebar" type="button" class="w-full py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Install Aplikasi (PWA)</span>
+        </button>
+
+        <div class="flex items-center justify-between px-2">
+          <div class="min-w-0">
+            <p id="sidebar-user-name" class="text-xs font-bold truncate">Pengguna</p>
+            <p id="sidebar-user-role" class="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold">USER</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button id="btn-theme-toggle" title="Ganti Tema" class="p-2 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">
+              <i data-lucide="sun-moon" class="w-4 h-4"></i>
+            </button>
+            <button id="btn-logout-desktop" title="Keluar" class="p-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- AREA KONTEN UTAMA -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <!-- Header Mobile & Status Bar -->
+      <header class="glass-panel border-b border-slate-200/70 dark:border-slate-800 px-4 py-3 flex items-center justify-between gap-3 shrink-0 z-10">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="md:hidden w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0">
+            <i data-lucide="scan-line" class="w-4 h-4"></i>
+          </div>
+          <div class="min-w-0">
+            <h1 id="header-view-title" class="text-base sm:text-lg font-extrabold tracking-tight truncate">Dokumen Saya</h1>
+            <p id="header-active-doc" class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Siap memindai dokumen PDF</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <span id="offline-indicator" class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online
+          </span>
+          <button id="btn-quick-new-scan" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">Scan Baru</span>
+          </button>
+          <button id="btn-theme-mobile" class="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            <i data-lucide="sun-moon" class="w-4 h-4"></i>
+          </button>
+          <button id="btn-logout-mobile" class="md:hidden p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Kontainer Scrollable untuk Semua View -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 main-content-area">
+
+        <!-- ==================== VIEW 1: BERANDA / DOKUMEN SAYA ==================== -->
+        <section id="view-home" class="app-view space-y-5 max-w-6xl mx-auto">
+          <!-- Kartu Statistik -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total Dokumen</p>
+              <p id="stat-total-docs" class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">0</p>
+            </div>
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total Halaman</p>
+              <p id="stat-total-pages" class="text-2xl font-extrabold text-slate-800 dark:text-white mt-1">0</p>
+            </div>
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Penyimpanan Lokal</p>
+              <p id="stat-storage-mode" class="text-sm font-bold text-teal-600 dark:text-teal-400 mt-2">IndexedDB Aktif</p>
+            </div>
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">API Key Gemini</p>
+              <p id="stat-api-keys" class="text-sm font-bold text-slate-700 dark:text-slate-200 mt-2">0 Key Tersimpan</p>
+            </div>
+          </div>
+
+          <!-- Pencarian & Aksi Cepat -->
+          <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input id="search-docs-input" type="text" placeholder="Cari judul dokumen atau hasil OCR..."
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-home-sync" class="px-3.5 py-2.5 rounded-xl glass-card text-xs font-bold flex items-center gap-1.5 hover:border-emerald-400 transition">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span>Sinkronisasi</span>
+              </button>
+              <button id="btn-home-create-doc" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                <i data-lucide="file-plus" class="w-3.5 h-3.5"></i>
+                <span>Proyek Baru</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Grid Daftar Dokumen -->
+          <div id="documents-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- ==================== VIEW 2: PINDAI (KAMERA, GALERI, PDF IMPOR) ==================== -->
+        <section id="view-scan" class="app-view hidden space-y-5 max-w-5xl mx-auto">
+          <!-- Pilihan Mode Pemindaian Khusus -->
+          <div class="glass-card rounded-2xl p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 class="text-sm font-extrabold flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
+                Pilih Mode Pemindaian
+              </h3>
+              <label class="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                <input id="toggle-batch-scan" type="checkbox" class="rounded text-emerald-600 focus:ring-emerald-500" />
+                <span>Mode Batch Scan (Banyak Halaman)</span>
+              </label>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button data-scan-mode="document" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/50">
+                <i data-lucide="file-text" class="w-5 h-5 text-emerald-600 mb-1"></i>
+                <p class="text-xs font-bold">Dokumen</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Auto-edge & 4 titik</p>
+              </button>
+              <button data-scan-mode="idcard" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-slate-200 dark:border-slate-700 hover:border-emerald-300">
+                <i data-lucide="credit-card" class="w-5 h-5 text-teal-600 mb-1"></i>
+                <p class="text-xs font-bold">ID Card / KTP</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Depan + Belakang A4</p>
+              </button>
+              <button data-scan-mode="book" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-slate-200 dark:border-slate-700 hover:border-emerald-300">
+                <i data-lucide="book-open" class="w-5 h-5 text-sky-600 mb-1"></i>
+                <p class="text-xs font-bold">Mode Buku</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Belah 2 halaman</p>
+              </button>
+            </div>
+
+            <!-- Panduan Khusus ID Card -->
+            <div id="idcard-guide-bar" class="hidden mt-3 p-3 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 flex items-center justify-between gap-3">
+              <div class="text-xs">
+                <span class="font-bold text-teal-800 dark:text-teal-300">Panduan ID Card:</span>
+                <span id="idcard-step-text" class="ml-1">Langkah 1/2 — Foto atau unggah Tampak Depan kartu.</span>
+              </div>
+              <button id="btn-reset-idcard" class="text-[11px] font-bold text-rose-600 hover:underline shrink-0">Reset</button>
+            </div>
+          </div>
+
+          <!-- Area Kamera Langsung -->
+          <div class="glass-card rounded-3xl overflow-hidden relative bg-slate-950">
+            <div class="relative aspect-[3/4] sm:aspect-video max-h-[62vh] w-full bg-slate-950 flex items-center justify-center overflow-hidden">
+              <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+
+              <!-- Placeholder saat kamera belum aktif -->
+              <div id="camera-placeholder" class="text-center p-6 text-slate-300 max-w-sm">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-slate-800 flex items-center justify-center mb-3">
+                  <i data-lucide="camera" class="w-8 h-8 text-emerald-400"></i>
+                </div>
+                <p class="text-sm font-bold text-white mb-1">Kamera Belakang Siap</p>
+                <p id="camera-error-msg" class="text-xs text-slate-400 mb-4">Klik tombol di bawah untuk membuka kamera langsung, atau impor gambar/PDF dari perangkat.</p>
+                <button id="btn-start-camera" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-2 shadow-lg">
+                  <i data-lucide="video" class="w-4 h-4"></i>
+                  <span>Buka Kamera Belakang</span>
+                </button>
+              </div>
+
+              <!-- Panduan Frame di atas Video -->
+              <div id="camera-overlay-guide" class="hidden absolute inset-0 pointer-events-none flex items-center justify-center p-6">
+                <div id="guide-box-doc" class="w-full h-full border-2 border-emerald-400/70 rounded-xl relative">
+                  <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
+                  <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
+                  <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg"></div>
+                  <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-lg"></div>
+                </div>
+                <div id="guide-line-book" class="hidden absolute inset-y-4 left-1/2 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-amber-400"></div>
+                <div id="guide-box-idcard" class="hidden w-72 sm:w-96 aspect-[1.586/1] border-2 border-teal-400 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"></div>
+              </div>
+
+              <!-- Indikator Stabilitas Auto-Capture -->
+              <div id="auto-capture-status" class="hidden absolute top-3 left-3 px-3 py-1.5 rounded-full bg-black/65 text-white text-[11px] font-bold flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 auto-capture-ring"></span>
+                <span id="auto-capture-text">Menunggu stabil...</span>
+              </div>
+
+              <!-- Indikator Batch Counter -->
+              <button id="btn-finish-batch" class="hidden absolute top-3 right-3 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-lg flex items-center gap-1.5">
+                <span id="batch-count-badge">0</span> Halaman • Selesai &rarr;
+              </button>
+            </div>
+
+            <!-- Kontrol Kamera & Impor -->
+            <div class="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <button id="btn-toggle-torch" disabled class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold flex items-center gap-1.5" title="Flash / Torch">
+                  <i data-lucide="zap" class="w-4 h-4"></i>
+                  <span class="hidden sm:inline">Flash</span>
+                </button>
+                <button id="btn-toggle-autocapture" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Auto-Capture Stabil">
+                  <i data-lucide="focus" class="w-4 h-4"></i>
+                  <span class="hidden sm:inline">Auto-Capture</span>
+                </button>
+                <button id="btn-stop-camera" class="hidden p-2.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-xs font-semibold">
+                  <i data-lucide="video-off" class="w-4 h-4"></i>
+                </button>
+              </div>
+
+              <!-- Tombol Jepret Utama -->
+              <button id="btn-capture-photo" disabled class="w-16 h-16 rounded-full border-4 border-white bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 flex items-center justify-center shadow-lg transition active:scale-95">
+                <div class="w-12 h-12 rounded-full border-2 border-emerald-200/70"></div>
+              </button>
+
+              <!-- Tombol Impor Galeri & PDF -->
+              <div class="flex items-center gap-2">
+                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5">
+                  <i data-lucide="image" class="w-4 h-4 text-emerald-400"></i>
+                  <span>Galeri</span>
+                  <input id="input-import-images" type="file" accept="image/*" multiple class="hidden" />
+                </label>
+                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5">
+                  <i data-lucide="file-up" class="w-4 h-4 text-sky-400"></i>
+                  <span>Impor PDF</span>
+                  <input id="input-import-pdf" type="file" accept="application/pdf" class="hidden" />
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== VIEW 3: EDITOR, FILTER, TANDA TANGAN & MANAJEMEN HALAMAN ==================== -->
+        <section id="view-editor" class="app-view hidden space-y-5 max-w-6xl mx-auto">
+          <!-- Bar Judul Proyek -->
+          <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="flex-1 flex items-center gap-2">
+              <i data-lucide="file-edit" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+              <input id="editor-doc-title" type="text" placeholder="Nama Dokumen..."
+                class="w-full bg-transparent font-bold text-sm sm:text-base focus:outline-none border-b border-transparent focus:border-emerald-500 py-0.5" />
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button id="btn-auto-rename" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition">
+                Nama Otomatis
+              </button>
+              <button id="btn-add-more-pages" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center gap-1">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Halaman
+              </button>
+              <button id="btn-goto-ai-export" class="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold flex items-center gap-1">
+                <span>AI & Ekspor PDF</span> <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <!-- Kolom Kiri: Pratinjau Kanvas & Overlay Tanda Tangan/Stempel -->
+            <div class="lg:col-span-7 space-y-4">
+              <div class="glass-card rounded-2xl p-3 sm:p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span id="editor-page-indicator" class="text-xs font-bold text-slate-500">Halaman 0 / 0</span>
+                  <div class="flex items-center gap-1.5">
+                    <button id="btn-open-cropper" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600">
+                      <i data-lucide="crop" class="w-3.5 h-3.5"></i> Crop 4 Titik
+                    </button>
+                    <button id="btn-rotate-page" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600">
+                      <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Putar 90°
+                    </button>
+                    <button id="btn-delete-page" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 text-xs font-semibold flex items-center gap-1">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Stage Kanvas Utama -->
+                <div id="editor-canvas-stage" class="relative w-full min-h-[340px] bg-slate-200/70 dark:bg-slate-900 rounded-xl flex items-center justify-center overflow-hidden p-2">
+                  <div id="editor-empty-state" class="text-center p-8 text-slate-400">
+                    <i data-lucide="image-off" class="w-10 h-10 mx-auto mb-2 opacity-60"></i>
+                    <p class="text-xs font-semibold">Belum ada halaman di dokumen ini.</p>
+                  </div>
+                  <div id="editor-canvas-wrapper" class="hidden relative inline-block max-w-full">
+                    <canvas id="editor-preview-canvas" class="max-w-full max-h-[55vh] rounded shadow-md block"></canvas>
+                    <!-- Layer Overlay Interaktif untuk Tanda Tangan / Stempel -->
+                    <div id="overlay-layer" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+                  </div>
+                </div>
+
+                <!-- Bar Kontrol Overlay Aktif -->
+                <div id="active-overlay-bar" class="hidden mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 text-xs font-semibold">
+                    <span>Ukuran Elemen:</span>
+                    <input id="overlay-scale-slider" type="range" min="40" max="320" value="140" class="w-28 accent-emerald-600" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button id="btn-cancel-overlay" class="px-3 py-1 rounded-lg bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600">Batal</button>
+                    <button id="btn-bake-overlay" class="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold">Tempel ke Halaman</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Grid Manajemen Halaman (Drag & Drop / Naik-Turun) -->
+              <div class="glass-card rounded-2xl p-4">
+                <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-3">Urutan Halaman PDF (Seret atau Gunakan Tombol)</h4>
+                <div id="pages-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+              </div>
+            </div>
+
+            <!-- Kolom Kanan: Filter, Sliders, Tanda Tangan, Stempel & Watermark -->
+            <div class="lg:col-span-5 space-y-4">
+              <!-- Filter Real-Time -->
+              <div class="glass-card rounded-2xl p-4 space-y-3">
+                <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Filter Pemrosesan Gambar</h4>
+                <div class="grid grid-cols-3 gap-2" id="filter-buttons">
+                  <button data-filter="original" class="filter-btn py-2 px-2 rounded-xl border text-xs font-bold transition">Original</button>
+                  <button data-filter="magic" class="filter-btn py-2 px-2 rounded-xl border text-xs font-bold transition">Magic Color</button>
+                  <button data-filter="grayscale" class="filter-btn py-2 px-2 rounded-xl border text-xs font-bold transition">Grayscale</button>
+                  <button data-filter="bw" class="filter-btn py-2 px-2 rounded-xl border text-xs font-bold transition">Hitam Putih</button>
+                  <button data-filter="shadow" class="filter-btn py-2 px-2 rounded-xl border text-xs font-bold transition col-span-2">Hapus Bayangan (Adaptive)</button>
+                </div>
+
+                <!-- Sliders Manual -->
+                <div class="space-y-2.5 pt-2">
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                      <span>Brightness</span><span id="val-brightness">0</span>
+                    </div>
+                    <input id="slider-brightness" type="range" min="-80" max="80" value="0" class="w-full accent-emerald-600" />
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                      <span>Contrast</span><span id="val-contrast">0</span>
+                    </div>
+                    <input id="slider-contrast" type="range" min="-80" max="80" value="0" class="w-full accent-emerald-600" />
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                      <span>Sharpness</span><span id="val-sharpness">0</span>
+                    </div>
+                    <input id="slider-sharpness" type="range" min="0" max="100" value="0" class="w-full accent-emerald-600" />
+                  </div>
+                  <div class="flex justify-end">
+                    <button id="btn-reset-adjustments" class="text-[11px] font-bold text-emerald-600 hover:underline">Reset Pengaturan</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tanda Tangan, Stempel & Watermark -->
+              <div class="glass-card rounded-2xl p-4 space-y-3">
+                <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Tanda Tangan, Stempel & Watermark</h4>
+                <div class="grid grid-cols-2 gap-2">
+                  <button id="btn-open-sign-modal" class="py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center justify-center gap-1.5">
+                    <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i> Tanda Tangan
+                  </button>
+                  <label class="cursor-pointer py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold flex items-center justify-center gap-1.5">
+                    <i data-lucide="upload" class="w-3.5 h-3.5 text-teal-600"></i> Foto TTD (Auto-Transparan)
+                    <input id="input-upload-sign" type="file" accept="image/*" class="hidden" />
+                  </label>
+                </div>
+
+                <!-- Stempel Kustom -->
+                <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700 space-y-2">
+                  <div class="flex gap-2">
+                    <input id="input-stamp-text" type="text" value="LUNAS" placeholder="Teks Stempel..."
+                      class="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase" />
+                    <select id="select-stamp-color" class="px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                      <option value="#dc2626">Merah</option>
+                      <option value="#059669">Hijau</option>
+                      <option value="#2563eb">Biru</option>
+                      <option value="#0f172a">Hitam</option>
+                    </select>
+                    <button id="btn-add-stamp" class="px-3 py-1.5 rounded-lg bg-slate-800 dark:bg-emerald-600 text-white text-xs font-bold">Stempel</button>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button data-preset-stamp="LUNAS" class="preset-stamp-btn px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold">LUNAS</button>
+                    <button data-preset-stamp="SALINAN" class="preset-stamp-btn px-2 py-0.5 rounded bg-sky-100 text-sky-700 text-[10px] font-bold">SALINAN</button>
+                    <button data-preset-stamp="RAHASIA" class="preset-stamp-btn px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">RAHASIA</button>
+                    <button data-preset-stamp="VERIFIED" class="preset-stamp-btn px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">VERIFIED</button>
+                  </div>
+                </div>
+
+                <!-- Watermark Diagonal -->
+                <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700 flex gap-2">
+                  <input id="input-watermark-text" type="text" placeholder="Teks Watermark Diagonal (mis: MILIK ALFIAN TECH)"
+                    class="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
+                  <button id="btn-apply-watermark" class="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold shrink-0">Watermark</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== VIEW 4: AI STUDIO (OCR & GEMINI) & EKSPOR PDF ==================== -->
+        <section id="view-ai" class="app-view hidden space-y-5 max-w-6xl mx-auto">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <!-- Panel Ekspor PDF, Kompresi, Password, Share & Print -->
+            <div class="lg:col-span-5 glass-card rounded-2xl p-5 space-y-4">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center">
+                  <i data-lucide="file-down" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-extrabold">Ekspor & Keamanan PDF</h3>
+                  <p class="text-[11px] text-slate-500">jsPDF Engine • Multi-Ukuran & Password</p>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-bold mb-1">Ukuran Kertas PDF</label>
+                  <select id="export-paper-size" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                    <option value="a4">A4 (210 × 297 mm)</option>
+                    <option value="f4">F4 / Folio (215 × 330 mm)</option>
+                    <option value="letter">Letter (216 × 279 mm)</option>
+                    <option value="autofit">Auto-Fit (Sesuai Rasio Gambar)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold mb-1">Kompresi Kualitas Gambar</label>
+                  <select id="export-quality" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                    <option value="0.45">Rendah / Ukuran Kecil (Hemat Kuota)</option>
+                    <option value="0.72" selected>Sedang / Seimbang (Direkomendasikan)</option>
+                    <option value="0.92">Tinggi / Tajam (Arsip Cetak)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold mb-1">Kunci PDF dengan Password (Opsional)</label>
+                  <input id="export-pdf-password" type="password" placeholder="Biarkan kosong jika tanpa password"
+                    class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-2 pt-2">
+                <button id="btn-export-pdf" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md">
+                  <i data-lucide="download" class="w-4 h-4"></i> Unduh File PDF
+                </button>
+                <div class="grid grid-cols-2 gap-2">
+                  <button id="btn-share-pdf" class="py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-bold flex items-center justify-center gap-1.5">
+                    <i data-lucide="share-2" class="w-4 h-4"></i> Bagikan (WA/Drive)
+                  </button>
+                  <button id="btn-print-doc" class="py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold flex items-center justify-center gap-1.5">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Cetak / Print
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel OCR Offline & Gemini AI -->
+            <div class="lg:col-span-7 glass-card rounded-2xl p-5 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-900/50 text-teal-600 flex items-center justify-center">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-extrabold">AI Studio & OCR Dokumen</h3>
+                    <p class="text-[11px] text-slate-500">Tesseract Offline & Gemini Multi-API Key</p>
+                  </div>
+                </div>
+                <select id="ai-translate-lang" class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                  <option value="Bahasa Indonesia">Terjemah: Indonesia</option>
+                  <option value="English">Terjemah: Inggris</option>
+                  <option value="Arabic">Terjemah: Arab</option>
+                  <option value="Japanese">Terjemah: Jepang</option>
+                </select>
+              </div>
+
+              <!-- Tombol Aksi OCR & AI -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <button id="btn-ocr-offline" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-bold flex items-center justify-center gap-1.5">
+                  <i data-lucide="scan-text" class="w-3.5 h-3.5 text-slate-600 dark:text-slate-300"></i> OCR Offline
+                </button>
+                <button id="btn-ai-ocr" class="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+                  <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> AI OCR + Tabel
+                </button>
+                <button id="btn-ai-summarize" class="p-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+                  <i data-lucide="align-left" class="w-3.5 h-3.5"></i> AI Ringkas
+                </button>
+                <button id="btn-ai-translate" class="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+                  <i data-lucide="languages" class="w-3.5 h-3.5"></i> AI Terjemahkan
+                </button>
+                <button id="btn-ai-clean" class="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 col-span-2 sm:col-span-2">
+                  <i data-lucide="eraser" class="w-3.5 h-3.5"></i> AI Bersihkan Noda & Rapikan Teks
+                </button>
+              </div>
+
+              <!-- Progress Bar -->
+              <div id="ai-progress-box" class="hidden p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800">
+                <div class="flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300 mb-1.5">
+                  <span id="ai-progress-label">Memproses dokumen...</span>
+                  <span id="ai-progress-pct">0%</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-emerald-200 dark:bg-emerald-900 overflow-hidden">
+                  <div id="ai-progress-bar" class="h-full bg-emerald-600 transition-all duration-300" style="width: 10%"></div>
+                </div>
+              </div>
+
+              <!-- Output Teks / Tabel HTML -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-bold text-slate-500">Hasil Ekstraksi / Analisis AI</span>
+                  <div class="flex items-center gap-1.5">
+                    <button id="btn-copy-ai-result" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-bold">Salin</button>
+                    <button id="btn-export-word" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">Word (.doc)</button>
+                    <button id="btn-export-excel" class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold">Excel (.xlsx)</button>
+                  </div>
+                </div>
+                <div id="ai-html-preview" class="hidden mb-2 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-48 overflow-auto text-xs prose dark:prose-invert max-w-none"></div>
+                <textarea id="ai-result-textarea" rows="8" placeholder="Hasil OCR offline, ekstrak tabel AI, ringkasan, atau terjemahan akan tampil di sini..."
+                  class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== VIEW 5: PENGATURAN, MULTI-API KEY & ADMIN ==================== -->
+        <section id="view-settings" class="app-view hidden space-y-5 max-w-5xl mx-auto">
+          <!-- Konfigurasi Multi-API Key Gemini -->
+          <div class="glass-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-extrabold flex items-center gap-2">
+                  <i data-lucide="key-round" class="w-4 h-4 text-emerald-600"></i>
+                  Rotasi Multi-API Key Gemini AI
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Tambahkan lebih dari 1 API Key agar sistem otomatis berpindah key jika kuota limit (HTTP 429).</p>
+              </div>
+              <button id="btn-test-gemini" class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                Uji Koneksi AI
+              </button>
+            </div>
+
+            <div class="flex gap-2">
+              <input id="input-new-apikey" type="password" placeholder="Tempel Gemini API Key (AIza...)"
+                class="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
+              <button id="btn-add-apikey" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0">
+                Tambah Key
+              </button>
+            </div>
+
+            <div id="apikey-list" class="space-y-2"></div>
+          </div>
+
+          <!-- Instalasi PWA & Informasi Aplikasi -->
+          <div class="glass-card rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="text-sm font-extrabold flex items-center gap-2">
+                <i data-lucide="smartphone" class="w-4 h-4 text-teal-600"></i>
+                Install Alfian Scan Pro di HP Android (PWA)
+              </h3>
+              <p class="text-xs text-slate-500 mt-1">Pasang ke Layar Utama (Add to Home Screen) agar bisa dibuka layar penuh seperti aplikasi asli & tetap berjalan offline.</p>
+            </div>
+            <button id="btn-install-pwa-settings" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shrink-0 flex items-center gap-2">
+              <i data-lucide="download" class="w-4 h-4"></i> Pasang Sekarang
+            </button>
+          </div>
+
+          <!-- Manajemen Pengguna (Khusus Admin) -->
+          <div id="admin-users-panel" class="hidden glass-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-extrabold flex items-center gap-2">
+                  <i data-lucide="users" class="w-4 h-4 text-emerald-600"></i>
+                  Manajemen Akun User / Operator (Admin)
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Kelola akun login User pada tabel Supabase <code class="text-emerald-600">app_users</code>.</p>
+              </div>
+              <button id="btn-refresh-users" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 transition">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <form id="form-add-user" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <input id="new-user-fullname" type="text" required placeholder="Nama Lengkap"
+                class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
+              <input id="new-user-username" type="text" required placeholder="Username / ID"
+                class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
+              <input id="new-user-password" type="text" required placeholder="Password"
+                class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
+              <button type="submit" class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                + Tambah User
+              </button>
+            </form>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                  <tr>
+                    <th class="py-2 pr-3">Nama</th>
+                    <th class="py-2 pr-3">Username</th>
+                    <th class="py-2 pr-3">Status</th>
+                    <th class="py-2 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-tbody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- BOTTOM NAVIGATION BAR MOBILE (MELAYANG DI BAWAH) -->
+    <nav id="mobile-bottom-nav" class="mobile-bottom-nav fixed bottom-3 left-3 right-3 glass-panel rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-700 px-2 py-1.5 items-center justify-around z-40">
+      <button data-view="home" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="folder-open" class="w-5 h-5"></i><span>Dokumen</span>
+      </button>
+      <button data-view="scan" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="camera" class="w-5 h-5"></i><span>Pindai</span>
+      </button>
+      <button data-view="editor" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5"></i><span>Editor</span>
+      </button>
+      <button data-view="ai" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="sparkles" class="w-5 h-5"></i><span>AI & PDF</span>
+      </button>
+      <button data-view="settings" class="nav-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition">
+        <i data-lucide="settings" class="w-5 h-5"></i><span>Setelan</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==================== MODAL CROP 4 TITIK & PERSPECTIVE WARP ==================== -->
+  <div id="modal-cropper" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex flex-col p-4">
+    <div class="flex items-center justify-between text-white mb-3">
+      <div>
+        <h3 class="text-sm font-extrabold">Deteksi Tepi & Pelurusan Perspektif</h3>
+        <p class="text-[11px] text-slate-300">Geser 4 titik hijau ke sudut kertas untuk meluruskan dokumen.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-crop-auto" class="px-3 py-1.5 rounded-lg bg-slate-800 text-emerald-400 text-xs font-bold">Auto-Detect</button>
+        <button id="btn-crop-cancel" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-bold">Batal</button>
+        <button id="btn-crop-apply" class="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">Terapkan Warp</button>
+      </div>
+    </div>
+    <div id="crop-stage" class="flex-1 flex items-center justify-center relative overflow-hidden">
+      <div id="crop-container" class="relative inline-block select-none">
+        <canvas id="crop-canvas" class="max-w-[90vw] max-h-[75vh] block rounded-lg"></canvas>
+        <svg id="crop-polygon-svg" class="absolute inset-0 w-full h-full pointer-events-none">
+          <polygon id="crop-polygon" points="" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2.5" />
+        </svg>
+        <div id="handle-0" data-idx="0" class="crop-handle"></div>
+        <div id="handle-1" data-idx="1" class="crop-handle"></div>
+        <div id="handle-2" data-idx="2" class="crop-handle"></div>
+        <div id="handle-3" data-idx="3" class="crop-handle"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL KANVAS TANDA TANGAN DIGITAL ==================== -->
+  <div id="modal-signature" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md glass-card rounded-3xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-extrabold">Buat Tanda Tangan Digital</h3>
+        <button id="btn-close-sign" class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-semibold">
+        <span>Warna Tinta:</span>
+        <button data-pen="#0f172a" class="pen-color-btn w-6 h-6 rounded-full bg-slate-900 ring-2 ring-emerald-500"></button>
+        <button data-pen="#1d4ed8" class="pen-color-btn w-6 h-6 rounded-full bg-blue-700"></button>
+        <button data-pen="#047857" class="pen-color-btn w-6 h-6 rounded-full bg-emerald-700"></button>
+      </div>
+      <canvas id="signature-pad" width="400" height="200" class="w-full h-48 bg-white rounded-2xl border-2 border-dashed border-slate-300 touch-none cursor-crosshair"></canvas>
+      <div class="flex items-center justify-between gap-2">
+        <button id="btn-clear-sign" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Bersihkan</button>
+        <button id="btn-use-sign" class="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Gunakan Tanda Tangan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL KONFIRMASI KUSTOM (PENGGANTI confirm()) ==================== -->
+  <div id="modal-confirm" class="hidden fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-sm glass-card rounded-2xl p-5 space-y-4">
+      <h3 id="confirm-title" class="text-sm font-extrabold">Konfirmasi</h3>
+      <p id="confirm-message" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+      <div class="flex justify-end gap-2">
+        <button id="btn-confirm-cancel" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Batal</button>
+        <button id="btn-confirm-ok" class="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold">Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL PANDUAN INSTALL PWA MANUAL ==================== -->
+  <div id="modal-pwa-guide" class="hidden fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-sm glass-card rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-extrabold text-emerald-700 dark:text-emerald-400">Cara Install di HP Android / iOS</h3>
+        <button id="btn-close-pwa-guide" class="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <ol class="text-xs space-y-2 text-slate-600 dark:text-slate-300 list-decimal pl-4">
+        <li>Pastikan halaman dibuka di <b>Google Chrome (Android)</b> atau <b>Safari (iPhone)</b> melalui tautan <b>HTTPS</b>.</li>
+        <li>Ketuk ikon menu <b>titik tiga (⋮)</b> di pojok kanan atas Chrome (atau ikon <b>Share</b> di Safari).</li>
+        <li>Pilih <b>"Tambahkan ke Layar utama" (Add to Home screen)</b> atau <b>"Instal aplikasi"</b>.</li>
+        <li>Ketuk <b>Instal</b> — ikon <b>Alfian Scan Pro</b> akan muncul di layar utama HP Anda!</li>
+      </ol>
+      <button id="btn-ok-pwa-guide" class="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">Mengerti</button>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[80] flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+
+</div>
+
+<!-- ==================== LOGIKA APLIKASI UTAMA (ES MODULE) ==================== -->
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  // =========================================================================
+  // 1. KONFIGURASI APLIKASI & SAKLAR DEPLOYMENT (IS_PREVIEW)
+  // =========================================================================
+  const IS_PREVIEW = false; // Ubah menjadi false SAAT DEPLOY agar mode preview & data dummy hilang dan terhubung 100% ke Supabase
+  const SUPABASE_URL = "https://vtbgzmwnkxcwvntjdezu.supabase.co;
+  const SUPABASE_ANON_KEY = "sb_publishable_edmA7f8ApIRTTJcospzWBw_f_-AeSxl";
+
+  // Inisialisasi Supabase Client HANYA saat mode produksi (IS_PREVIEW === false)
+  let supabase = null;
+  if (!IS_PREVIEW) {
+    try {
+      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (err) {
+      console.error('Gagal menginisialisasi Supabase:', err);
+    }
+  }
+
+  // Konfigurasi PDF.js Worker
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  // =========================================================================
+  // 2. STATE GLOBAL & DATA DUMMY MINIMALIS (HANYA AKTIF JIKA IS_PREVIEW=true)
+  // =========================================================================
+  const state = {
+    currentUser: null, // { username, fullName, role: 'admin'|'user', email? }
+    loginTab: 'user',
+    activeView: 'home',
+    documents: [], // Disimpan di IndexedDB + metadata di Supabase
+    activeDocId: null,
+    activePageIndex: 0,
+    scanMode: 'document', // 'document' | 'idcard' | 'book'
+    idCardFrontDataUrl: null,
+    batchMode: false,
+    batchCount: 0,
+    cameraStream: null,
+    torchOn: false,
+    autoCaptureEnabled: false,
+    autoCaptureTimer: null,
+    lastFrameData: null,
+    stableCounter: 0,
+    apiKeys: [],
+    apiKeyIndex: 0,
+    usersList: [],
+    deferredPwaPrompt: null,
+    cropContext: null, // { img, corners: [{x,y}x4], onDone }
+    activeOverlay: null, // { type, dataUrl, x, y, width, height }
+    signaturePenColor: '#0f172a'
+  };
+
+  // Data Dummy Minimalis (Hanya 1-2 baris, HANYA digunakan saat IS_PREVIEW === true)
+  const PREVIEW_DUMMY_USERS = IS_PREVIEW ? [
+    { id: 'prev-u1', username: 'operator1', password: '123', full_name: 'Operator Demo', role: 'user', is_active: true }
+  ] : [];
+
+  // =========================================================================
+  // 3. IMPLEMENTASI PWA 1 FILE (DYNAMIC PNG ICON + MANIFEST + BLOB SW)
+  // =========================================================================
+  function generatePwaIconDataUrl(size) {
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, size, size);
+    grad.addColorStop(0, '#10b981');
+    grad.addColorStop(1, '#047857');
+    ctx.fillStyle = grad;
+    const r = size * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.lineTo(size - r, 0); ctx.quadraticCurveTo(size, 0, size, r);
+    ctx.lineTo(size, size - r); ctx.quadraticCurveTo(size, size, size - r, size);
+    ctx.lineTo(r, size); ctx.quadraticCurveTo(0, size, 0, size - r);
+    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath(); ctx.fill();
+
+    // Ikon Dokumen & Garis Scan
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = size * 0.06;
+    ctx.lineJoin = 'round';
+    ctx.strokeRect(size * 0.24, size * 0.18, size * 0.52, size * 0.64);
+    ctx.strokeStyle = '#a7f3d0';
+    ctx.beginPath();
+    ctx.moveTo(size * 0.14, size * 0.5);
+    ctx.lineTo(size * 0.86, size * 0.5);
+    ctx.stroke();
+    return c.toDataURL('image/png');
+  }
+
+  function initPWA() {
+    try {
+      const icon192 = generatePwaIconDataUrl(192);
+      const icon512 = generatePwaIconDataUrl(512);
+
+      // Apple Touch Icon
+      const appleLink = document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      appleLink.href = icon192;
+      document.head.appendChild(appleLink);
+
+      // Dynamic Manifest Data URI
+      const manifestObj = {
+        name: 'Alfian Scan Pro — Pemindai PDF',
+        short_name: 'Alfian Scan',
+        description: 'Aplikasi PWA Pemindai Dokumen PDF Modern oleh alfian tech',
+        start_url: window.location.href,
+        scope: window.location.origin + '/',
+        display: 'standalone',
+        orientation: 'portrait',
+        background_color: '#ffffff',
+        theme_color: '#059669',
+        icons: [
+          { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+        ]
+      };
+      const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+      document.getElementById('pwa-manifest-link').setAttribute('href', manifestDataUri);
+
+      // Tangkap event beforeinstallprompt untuk tombol Install di HP Android
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        state.deferredPwaPrompt = e;
+      });
+
+      // Registrasi Service Worker dinamis menggunakan Blob
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        const swCode = `
+          const CACHE_NAME = 'alfian-scan-pro-v1';
+          self.addEventListener('install', (e) => { self.skipWaiting(); });
+          self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+          self.addEventListener('fetch', (e) => {
+            if (e.request.method !== 'GET') return;
+            e.respondWith(
+              fetch(e.request).then((res) => {
+                const clone = res.clone();
+                caches.open(CACHE_NAME).then((c) => c.put(e.request, clone)).catch(() => {});
+                return res;
+              }).catch(() => caches.match(e.request))
+            );
+          });
+        `;
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).catch(() => {
+          // Abaikan jika browser membatasi scope Blob SW di lingkungan tertentu
+        });
+      }
+    } catch (err) {
+      console.warn('PWA init warning:', err);
+    }
+  }
+
+  async function triggerPwaInstall() {
+    if (state.deferredPwaPrompt) {
+      state.deferredPwaPrompt.prompt();
+      const { outcome } = await state.deferredPwaPrompt.userChoice;
+      if (outcome === 'accepted') showToast('Aplikasi sedang dipasang ke layar utama HP!', 'success');
+      state.deferredPwaPrompt = null;
+    } else {
+      document.getElementById('modal-pwa-guide').classList.remove('hidden');
+    }
+  }
+
+  // =========================================================================
+  // 4. INDEXEDDB ENGINE (PENYIMPANAN DOKUMEN OFFLINE)
+  // =========================================================================
+  const IDB_NAME = 'AlfianScanProDB';
+  const IDB_STORE = 'documents';
+
+  function openIDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbGetAllDocs() {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).getAll();
+      req.onsuccess = () => resolve((req.result || []).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbSaveDoc(doc) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(doc);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function idbDeleteDoc(docId) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(docId);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  // =========================================================================
+  // 5. UTILITAS UI: TOAST, CONFIRM MODAL, TEMA, FORMATTER
+  // =========================================================================
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    const colors = {
+      success: 'bg-emerald-600 text-white',
+      error: 'bg-rose-600 text-white',
+      warning: 'bg-amber-500 text-slate-950',
+      info: 'bg-slate-800 text-white dark:bg-slate-700'
+    };
+    el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs font-bold flex items-center justify-between gap-2 transition-all duration-300 ${colors[type] || colors.info}`;
+    el.innerHTML = `<span>${escapeHtml(message)}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-8px)';
+      setTimeout(() => el.remove(), 300);
+    }, 3200);
+  }
+
+  function showConfirm(title, message) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('modal-confirm');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+      modal.classList.remove('hidden');
+      const cleanup = (val) => {
+        modal.classList.add('hidden');
+        document.getElementById('btn-confirm-ok').onclick = null;
+        document.getElementById('btn-confirm-cancel').onclick = null;
+        resolve(val);
+      };
+      document.getElementById('btn-confirm-ok').onclick = () => cleanup(true);
+      document.getElementById('btn-confirm-cancel').onclick = () => cleanup(false);
+    });
+  }
+
+  function escapeHtml(str = '') {
+    return String(str).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.classList.toggle('dark');
+    localStorage.setItem('alfian_scan_theme', isDark ? 'dark' : 'light');
+  }
+
+  function generateAutoDocName(prefix = 'Dokumen') {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `AlfianScan_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}_${prefix}`;
+  }
+
+  // =========================================================================
+  // 6. AUTENTIKASI HYBRID (ADMIN VIA SUPABASE AUTH, USER VIA TABEL)
+  // =========================================================================
+  function setLoginTab(tab) {
+    state.loginTab = tab;
+    const btnUser = document.getElementById('tab-login-user');
+    const btnAdmin = document.getElementById('tab-login-admin');
+    const label = document.getElementById('login-id-label');
+    const input = document.getElementById('login-identifier');
+    const activeCls = 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm';
+    const inactiveCls = 'text-slate-500 dark:text-slate-400';
+
+    if (tab === 'admin') {
+      btnAdmin.className = `py-2 text-xs font-bold rounded-lg transition-all ${activeCls}`;
+      btnUser.className = `py-2 text-xs font-bold rounded-lg transition-all ${inactiveCls}`;
+      label.textContent = 'Email Admin (Supabase Auth)';
+      input.type = 'email';
+      input.placeholder = 'admin@domain.com';
+    } else {
+      btnUser.className = `py-2 text-xs font-bold rounded-lg transition-all ${activeCls}`;
+      btnAdmin.className = `py-2 text-xs font-bold rounded-lg transition-all ${inactiveCls}`;
+      label.textContent = 'Username / ID Operator';
+      input.type = 'text';
+      input.placeholder = 'Masukkan username Anda';
+    }
+  }
+
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    const identifier = document.getElementById('login-identifier').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!identifier || !password) return showToast('Mohon lengkapi kredensial login.', 'warning');
+
+    if (IS_PREVIEW) {
+      // Mode Preview: Login lokal tanpa memanggil Supabase
+      if (state.loginTab === 'admin') {
+        enterApp({ username: identifier, fullName: 'Admin Preview', role: 'admin', email: identifier });
+      } else {
+        const found = PREVIEW_DUMMY_USERS.find((u) => u.username === identifier && u.password === password);
+        enterApp({ username: found ? found.username : identifier, fullName: found ? found.full_name : identifier, role: 'user' });
+      }
+      return;
+    }
+
+    // Mode Produksi (IS_PREVIEW === false): 100% Terhubung ke Supabase
+    if (!supabase) return showToast('Konfigurasi SUPABASE_URL & SUPABASE_ANON_KEY belum valid.', 'error');
+    const btn = document.getElementById('btn-login-submit');
+    btn.disabled = true;
+
+    try {
+      if (state.loginTab === 'admin') {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: identifier, password });
+        if (error) throw error;
+        enterApp({
+          username: data.user.email,
+          fullName: data.user.user_metadata?.full_name || 'Administrator',
+          role: 'admin',
+          email: data.user.email
+        });
+      } else {
+        const { data, error } = await supabase
+          .from('app_users')
+          .select('*')
+          .eq('username', identifier)
+          .eq('password', password)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('Username atau password tidak cocok, atau akun nonaktif.');
+        localStorage.setItem('alfian_scan_user_session', JSON.stringify(data));
+        enterApp({ username: data.username, fullName: data.full_name, role: data.role || 'user' });
+      }
+    } catch (err) {
+      showToast(err.message || 'Gagal login ke Supabase.', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function enterApp(user) {
+    state.currentUser = user;
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-shell').classList.remove('hidden');
+    document.getElementById('sidebar-user-name').textContent = user.fullName || user.username;
+    document.getElementById('sidebar-user-role').textContent = user.role === 'admin' ? 'ADMINISTRATOR' : 'OPERATOR / USER';
+
+    const adminPanel = document.getElementById('admin-users-panel');
+    if (user.role === 'admin') {
+      adminPanel.classList.remove('hidden');
+      loadAdminUsers();
+    } else {
+      adminPanel.classList.add('hidden');
+    }
+
+    await loadSettingsAndKeys();
+    await loadDocuments();
+    switchView('home');
+    showToast(`Selamat datang, ${user.fullName || user.username}!`, 'success');
+  }
+
+  async function handleLogout() {
+    stopCamera();
+    if (!IS_PREVIEW && supabase && state.currentUser?.role === 'admin') {
+      await supabase.auth.signOut().catch(() => {});
+    }
+    localStorage.removeItem('alfian_scan_user_session');
+    state.currentUser = null;
+    document.getElementById('app-shell').classList.add('hidden');
+    document.getElementById('auth-screen').classList.remove('hidden');
+    showToast('Anda telah keluar.', 'info');
+  }
+
+  // =========================================================================
+  // 7. NAVIGASI & MANAJEMEN DOKUMEN (INDEXEDDB + SYNC SUPABASE)
+  // =========================================================================
+  function switchView(viewName) {
+    if (viewName !== 'scan') stopCamera();
+    state.activeView = viewName;
+    document.querySelectorAll('.app-view').forEach((el) => el.classList.add('hidden'));
+    const target = document.getElementById(`view-${viewName}`);
+    if (target) target.classList.remove('hidden');
+
+    const titles = {
+      home: 'Dokumen Saya',
+      scan: 'Pindai & Impor Dokumen',
+      editor: 'Editor Gambar & Halaman',
+      ai: 'AI Studio & Ekspor PDF',
+      settings: 'Pengaturan & Admin'
+    };
+    document.getElementById('header-view-title').textContent = titles[viewName] || 'Alfian Scan Pro';
+
+    document.querySelectorAll('.nav-btn').forEach((btn) => {
+      const active = btn.dataset.view === viewName;
+      btn.classList.toggle('bg-emerald-600', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('shadow-md', active);
+      btn.classList.toggle('text-slate-600', !active);
+      btn.classList.toggle('dark:text-slate-300', !active);
+    });
+
+    if (viewName === 'editor') renderEditorView();
+    if (viewName === 'home') renderDocumentsGrid();
+    updateHeaderActiveDoc();
+  }
+
+  function getActiveDoc() {
+    return state.documents.find((d) => d.id === state.activeDocId) || null;
+  }
+
+  function updateHeaderActiveDoc() {
+    const doc = getActiveDoc();
+    document.getElementById('header-active-doc').textContent = doc
+      ? `Aktif: ${doc.title} (${doc.pages.length} hal.)`
+      : 'Belum ada dokumen aktif';
+  }
+
+  async function loadDocuments() {
+    try {
+      state.documents = await idbGetAllDocs();
+
+      // Mode Preview: buat 1 contoh dokumen minimalist jika benar-benar kosong
+      if (IS_PREVIEW && state.documents.length === 0) {
+        const sampleCanvas = document.createElement('canvas');
+        sampleCanvas.width = 600; sampleCanvas.height = 840;
+        const ctx = sampleCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 600, 840);
+        ctx.fillStyle = '#059669'; ctx.fillRect(0, 0, 600, 90);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px sans-serif'; ctx.fillText('ALFIAN SCAN PRO — CONTOH DOKUMEN', 36, 55);
+        ctx.fillStyle = '#1e293b'; ctx.font = '18px sans-serif';
+        ctx.fillText('Tanggal: ' + new Date().toLocaleDateString('id-ID'), 40, 150);
+        ctx.fillText('Status: Siap diuji coba filter, TTD, OCR & PDF.', 40, 190);
+        ctx.strokeStyle = '#cbd5e1'; ctx.strokeRect(40, 230, 520, 180);
+        ctx.fillText('Item 1: Pemindaian Perspektif    | Rp 0', 60, 280);
+        ctx.fillText('Item 2: Ekspor PDF & Excel AI    | Aktif', 60, 330);
+        const sampleUrl = sampleCanvas.toDataURL('image/jpeg', 0.9);
+        const sampleDoc = {
+          id: 'doc-preview-1',
+          title: 'Contoh_Dokumen_Preview',
+          scanMode: 'document',
+          paperSize: 'a4',
+          pages: [{ id: 'pg-1', originalDataUrl: sampleUrl, processedDataUrl: sampleUrl, filter: 'original', brightness: 0, contrast: 0, sharpness: 0, rotation: 0 }],
+          ocrText: '',
+          aiSummary: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          synced: false
+        };
+        await idbSaveDoc(sampleDoc);
+        state.documents = [sampleDoc];
+      }
+
+      if (state.documents.length > 0 && !state.activeDocId) {
+        state.activeDocId = state.documents[0].id;
+      }
+      renderDocumentsGrid();
+    } catch (err) {
+      showToast('Gagal membaca penyimpanan lokal IndexedDB.', 'error');
+    }
+  }
+
+  async function createNewDocument(title = null, scanMode = 'document') {
+    const newDoc = {
+      id: 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      title: title || generateAutoDocName(scanMode === 'idcard' ? 'IDCard' : scanMode === 'book' ? 'Buku' : 'Dokumen'),
+      scanMode,
+      paperSize: 'a4',
+      pages: [],
+      ocrText: '',
+      aiSummary: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      synced: false
+    };
+    state.documents.unshift(newDoc);
+    state.activeDocId = newDoc.id;
+    state.activePageIndex = 0;
+    await idbSaveDoc(newDoc);
+    syncDocMetadataToSupabase(newDoc);
+    renderDocumentsGrid();
+    updateHeaderActiveDoc();
+    return newDoc;
+  }
+
+  async function saveActiveDoc(syncCloud = true) {
+    const doc = getActiveDoc();
+    if (!doc) return;
+    doc.updatedAt = new Date().toISOString();
+    await idbSaveDoc(doc);
+    if (syncCloud) syncDocMetadataToSupabase(doc);
+    renderDocumentsGrid();
+    updateHeaderActiveDoc();
+  }
+
+  async function syncDocMetadataToSupabase(doc) {
+    if (IS_PREVIEW || !supabase || !state.currentUser) return;
+    try {
+      const payload = {
+        local_doc_id: doc.id,
+        owner_username: state.currentUser.username,
+        title: doc.title,
+        scan_mode: doc.scanMode || 'document',
+        page_count: doc.pages.length,
+        paper_size: doc.paperSize || 'a4',
+        ai_summary: doc.aiSummary || '',
+        ocr_text: (doc.ocrText || '').slice(0, 10000),
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabase.from('scan_documents').upsert(payload, { onConflict: 'local_doc_id' });
+      if (!error) {
+        doc.synced = true;
+        await idbSaveDoc(doc);
+      }
+    } catch (err) {
+      console.warn('Sinkronisasi metadata Supabase tertunda (offline):', err);
+    }
+  }
+
+  function renderDocumentsGrid() {
+    const grid = document.getElementById('documents-grid');
+    const q = (document.getElementById('search-docs-input')?.value || '').toLowerCase();
+    const filtered = state.documents.filter((d) =>
+      d.title.toLowerCase().includes(q) || (d.ocrText || '').toLowerCase().includes(q)
+    );
+
+    const totalPages = state.documents.reduce((acc, d) => acc + (d.pages?.length || 0), 0);
+    document.getElementById('stat-total-docs').textContent = state.documents.length;
+    document.getElementById('stat-total-pages').textContent = totalPages;
+    document.getElementById('stat-api-keys').textContent = `${state.apiKeys.length} Key Tersimpan`;
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `
+        <div class="col-span-full glass-card rounded-2xl p-10 text-center">
+          <i data-lucide="folder-open" class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3"></i>
+          <p class="text-sm font-bold text-slate-600 dark:text-slate-300">Belum ada dokumen</p>
+          <p class="text-xs text-slate-400 mt-1">Klik "Scan Baru" atau "Proyek Baru" untuk mulai memindai.</p>
+        </div>`;
+      lucide.createIcons();
+      return;
+    }
+
+    grid.innerHTML = filtered.map((doc) => {
+      const thumb = doc.pages[0]?.processedDataUrl || '';
+      const isSelected = doc.id === state.activeDocId;
+      return `
+        <div class="glass-card rounded-2xl overflow-hidden flex flex-col transition hover:shadow-md ${isSelected ? 'ring-2 ring-emerald-500' : ''}">
+          <div class="h-40 bg-slate-200/70 dark:bg-slate-800 relative overflow-hidden cursor-pointer" data-open-doc="${doc.id}">
+            ${thumb ? `<img src="${thumb}" class="w-full h-full object-cover" alt="${escapeHtml(doc.title)}" />` : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs font-semibold">Kosong</div>`}
+            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/65 text-white text-[10px] font-bold">${doc.pages.length} Hal</span>
+            <span class="absolute top-2 right-2 px-2 py-0.5 rounded-lg ${doc.synced ? 'bg-emerald-600' : 'bg-slate-700'} text-white text-[10px] font-bold">
+              ${doc.synced ? 'Cloud Sync' : 'Lokal'}
+            </span>
+          </div>
+          <div class="p-3.5 flex-1 flex flex-col justify-between gap-3">
+            <div>
+              <h4 class="font-bold text-sm truncate" title="${escapeHtml(doc.title)}">${escapeHtml(doc.title)}</h4>
+              <p class="text-[11px] text-slate-400 mt-0.5">${new Date(doc.updatedAt).toLocaleString('id-ID')}</p>
+            </div>
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button data-open-doc="${doc.id}" class="flex-1 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition">
+                Buka & Edit
+              </button>
+              <button data-del-doc="${doc.id}" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition" title="Hapus">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    grid.querySelectorAll('[data-open-doc]').forEach((el) => {
+      el.addEventListener('click', () => {
+        state.activeDocId = el.dataset.openDoc;
+        state.activePageIndex = 0;
+        switchView('editor');
+      });
+    });
+
+    grid.querySelectorAll('[data-del-doc]').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const ok = await showConfirm('Hapus Dokumen', 'Dokumen dan seluruh halamannya akan dihapus dari perangkat. Lanjutkan?');
+        if (!ok) return;
+        const id = el.dataset.delDoc;
+        await idbDeleteDoc(id);
+        if (!IS_PREVIEW && supabase) {
+          await supabase.from('scan_documents').delete().eq('local_doc_id', id).catch(() => {});
+        }
+        state.documents = state.documents.filter((d) => d.id !== id);
+        if (state.activeDocId === id) state.activeDocId = state.documents[0]?.id || null;
+        renderDocumentsGrid();
+        showToast('Dokumen dihapus.', 'info');
+      });
+    });
+
+    lucide.createIcons();
+  }
+
+  // =========================================================================
+  // 8. KAMERA (TORCH, AUTO-CAPTURE, BATCH) + IMPOR GALERI & PDF
+  // =========================================================================
+  function setScanMode(mode) {
+    state.scanMode = mode;
+    state.idCardFrontDataUrl = null;
+    document.querySelectorAll('.scan-mode-btn').forEach((btn) => {
+      const active = btn.dataset.scanMode === mode;
+      btn.classList.toggle('border-emerald-500', active);
+      btn.classList.toggle('bg-emerald-50/70', active);
+      btn.classList.toggle('dark:bg-emerald-950/50', active);
+      btn.classList.toggle('border-slate-200', !active);
+      btn.classList.toggle('dark:border-slate-700', !active);
+    });
+    document.getElementById('idcard-guide-bar').classList.toggle('hidden', mode !== 'idcard');
+    document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
+    document.getElementById('guide-box-doc').classList.toggle('hidden', mode !== 'document');
+    document.getElementById('guide-line-book').classList.toggle('hidden', mode !== 'book');
+    document.getElementById('guide-box-idcard').classList.toggle('hidden', mode !== 'idcard');
+  }
+
+  async function startCamera() {
+    const errEl = document.getElementById('camera-error-msg');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      errEl.textContent = 'Browser tidak mendukung akses kamera atau halaman tidak berjalan di HTTPS. Gunakan tombol Galeri.';
+      return showToast('Kamera tidak tersedia di lingkungan ini.', 'error');
+    }
+    try {
+      stopCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      state.cameraStream = stream;
+      const video = document.getElementById('camera-video');
+      video.srcObject = stream;
+      video.classList.remove('hidden');
+      document.getElementById('camera-placeholder').classList.add('hidden');
+      document.getElementById('camera-overlay-guide').classList.remove('hidden');
+      document.getElementById('btn-capture-photo').disabled = false;
+      document.getElementById('btn-stop-camera').classList.remove('hidden');
+
+      // Cek dukungan Flash / Torch
+      const track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      document.getElementById('btn-toggle-torch').disabled = !caps.torch;
+      showToast('Kamera belakang aktif.', 'success');
+    } catch (err) {
+      errEl.textContent = 'Izin kamera ditolak atau kamera tidak ditemukan. Izinkan akses kamera di browser Anda atau gunakan tombol Galeri.';
+      showToast('Izin kamera ditolak: ' + err.message, 'error');
+    }
+  }
+
+  function stopCamera() {
+    if (state.autoCaptureTimer) {
+      clearInterval(state.autoCaptureTimer);
+      state.autoCaptureTimer = null;
+    }
+    state.autoCaptureEnabled = false;
+    document.getElementById('auto-capture-status').classList.add('hidden');
+    if (state.cameraStream) {
+      state.cameraStream.getTracks().forEach((t) => t.stop());
+      state.cameraStream = null;
+    }
+    state.torchOn = false;
+    const video = document.getElementById('camera-video');
+    if (video) {
+      video.srcObject = null;
+      video.classList.add('hidden');
+    }
+    document.getElementById('camera-placeholder')?.classList.remove('hidden');
+    document.getElementById('camera-overlay-guide')?.classList.add('hidden');
+    document.getElementById('btn-capture-photo').disabled = true;
+    document.getElementById('btn-toggle-torch').disabled = true;
+    document.getElementById('btn-stop-camera')?.classList.add('hidden');
+  }
+
+  async function toggleTorch() {
+    if (!state.cameraStream) return;
+    const track = state.cameraStream.getVideoTracks()[0];
+    try {
+      state.torchOn = !state.torchOn;
+      await track.applyConstraints({ advanced: [{ torch: state.torchOn }] });
+      showToast(state.torchOn ? 'Flash menyala' : 'Flash mati', 'info');
+    } catch {
+      showToast('Perangkat ini tidak mendukung kontrol Flash dari browser.', 'warning');
+    }
+  }
+
+  function toggleAutoCapture() {
+    if (!state.cameraStream) return showToast('Buka kamera terlebih dahulu.', 'warning');
+    state.autoCaptureEnabled = !state.autoCaptureEnabled;
+    const badge = document.getElementById('auto-capture-status');
+    const txt = document.getElementById('auto-capture-text');
+
+    if (state.autoCaptureEnabled) {
+      badge.classList.remove('hidden');
+      state.stableCounter = 0;
+      state.lastFrameData = null;
+      const sampleCanvas = document.createElement('canvas');
+      sampleCanvas.width = 64; sampleCanvas.height = 48;
+      const sctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+      state.autoCaptureTimer = setInterval(() => {
+        const video = document.getElementById('camera-video');
+        if (!video || video.readyState < 2) return;
+        sctx.drawImage(video, 0, 0, 64, 48);
+        const frame = sctx.getImageData(0, 0, 64, 48).data;
+        if (state.lastFrameData) {
+          let diff = 0;
+          for (let i = 0; i < frame.length; i += 4) {
+            diff += Math.abs(frame[i] - state.lastFrameData[i]);
+          }
+          const avgDiff = diff / (64 * 48);
+          if (avgDiff < 4.5) {
+            state.stableCounter++;
+            txt.textContent = `Stabil (${state.stableCounter}/4)...`;
+            if (state.stableCounter >= 4) {
+              state.stableCounter = 0;
+              captureFromCamera();
+            }
+          } else {
+            state.stableCounter = 0;
+            txt.textContent = 'Tahan posisi kamera...';
+          }
+        }
+        state.lastFrameData = new Uint8ClampedArray(frame);
+      }, 320);
+      showToast('Auto-Capture aktif: tahan kamera agar memotret otomatis.', 'info');
+    } else {
+      clearInterval(state.autoCaptureTimer);
+      badge.classList.add('hidden');
+    }
+  }
+
+  function captureFromCamera() {
+    const video = document.getElementById('camera-video');
+    if (!video || !video.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    processCapturedImage(c.toDataURL('image/jpeg', 0.92));
+  }
+
+  async function processCapturedImage(dataUrl) {
+    if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
+
+    // MODE ID CARD / KTP (Depan + Belakang -> 1 Halaman A4)
+    if (state.scanMode === 'idcard') {
+      if (!state.idCardFrontDataUrl) {
+        state.idCardFrontDataUrl = dataUrl;
+        document.getElementById('idcard-step-text').textContent = 'Langkah 2/2 — Tampak Depan tersimpan! Sekarang foto/unggah Tampak Belakang.';
+        showToast('Tampak Depan tersimpan. Lanjut Tampak Belakang.', 'success');
+        return;
+      } else {
+        const mergedA4 = await combineIdCardToA4(state.idCardFrontDataUrl, dataUrl);
+        state.idCardFrontDataUrl = null;
+        document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
+        await addPageToActiveDoc(mergedA4);
+        showToast('ID Card Depan & Belakang berhasil digabung ke 1 halaman A4!', 'success');
+        if (!state.batchMode) switchView('editor');
+        return;
+      }
+    }
+
+    // MODE BUKU (Belah 2 halaman kiri & kanan otomatis)
+    if (state.scanMode === 'book') {
+      const [leftUrl, rightUrl] = await splitBookPages(dataUrl);
+      await addPageToActiveDoc(leftUrl);
+      await addPageToActiveDoc(rightUrl);
+      showToast('Mode Buku: 2 halaman (Kiri & Kanan) berhasil dipisahkan!', 'success');
+      if (!state.batchMode) switchView('editor');
+      return;
+    }
+
+    // MODE DOKUMEN STANDAR
+    if (state.batchMode) {
+      await addPageToActiveDoc(dataUrl);
+      state.batchCount++;
+      document.getElementById('batch-count-badge').textContent = state.batchCount;
+      document.getElementById('btn-finish-batch').classList.remove('hidden');
+      showToast(`Halaman #${state.batchCount} ditambahkan ke batch.`, 'success');
+    } else {
+      openPerspectiveCropper(dataUrl, async (warpedUrl) => {
+        await addPageToActiveDoc(warpedUrl);
+        switchView('editor');
+      });
+    }
+  }
+
+  async function addPageToActiveDoc(dataUrl) {
+    let doc = getActiveDoc();
+    if (!doc) doc = await createNewDocument(null, state.scanMode);
+    doc.pages.push({
+      id: 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5),
+      originalDataUrl: dataUrl,
+      processedDataUrl: dataUrl,
+      filter: 'original',
+      brightness: 0,
+      contrast: 0,
+      sharpness: 0,
+      rotation: 0
+    });
+    state.activePageIndex = doc.pages.length - 1;
+    await saveActiveDoc();
+  }
+
+  function loadImageObj(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  // Gabung ID Card Depan + Belakang ke A4 Proporsional (1240 x 1754 px @ 150 DPI)
+  async function combineIdCardToA4(frontUrl, backUrl) {
+    const [imgF, imgB] = await Promise.all([loadImageObj(frontUrl), loadImageObj(backUrl)]);
+    const c = document.createElement('canvas');
+    c.width = 1240; c.height = 1754;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+
+    const cardW = 760;
+    const cardH = Math.round(cardW / 1.586); // Rasio standar ISO/IEC 7810 ID-1 (KTP)
+    const x = (c.width - cardW) / 2;
+    ctx.drawImage(imgF, x, 240, cardW, cardH);
+    ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.strokeRect(x, 240, cardW, cardH);
+
+    ctx.drawImage(imgB, x, 240 + cardH + 140, cardW, cardH);
+    ctx.strokeRect(x, 240 + cardH + 140, cardW, cardH);
+    return c.toDataURL('image/jpeg', 0.92);
+  }
+
+  // Belah 2 Halaman Buku (Book Dewarp Split)
+  async function splitBookPages(dataUrl) {
+    const img = await loadImageObj(dataUrl);
+    const halfW = Math.floor(img.width / 2);
+    const makeHalf = (sx) => {
+      const c = document.createElement('canvas');
+      c.width = halfW; c.height = img.height;
+      c.getContext('2d').drawImage(img, sx, 0, halfW, img.height, 0, 0, halfW, img.height);
+      return c.toDataURL('image/jpeg', 0.92);
+    };
+    return [makeHalf(0), makeHalf(halfW)];
+  }
+
+  // Impor PDF yang sudah ada untuk diedit ulang (via PDF.js)
+  async function handleImportPdf(file) {
+    if (!window.pdfjsLib) return showToast('Pustaka PDF.js belum siap.', 'error');
+    showToast('Membaca halaman PDF...', 'info');
+    try {
+      const arrayBuf = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuf }).promise;
+      if (!getActiveDoc()) await createNewDocument(file.name.replace(/\.pdf$/i, ''), 'document');
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({ scale: 1.6 });
+        const c = document.createElement('canvas');
+        c.width = viewport.width; c.height = viewport.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
+        await addPageToActiveDoc(c.toDataURL('image/jpeg', 0.9));
+      }
+      showToast(`Berhasil mengimpor ${pdf.numPages} halaman PDF!`, 'success');
+      switchView('editor');
+    } catch (err) {
+      showToast('Gagal mengimpor PDF: ' + err.message, 'error');
+    }
+  }
+
+  // =========================================================================
+  // 9. DETEKSI TEPI OTOMATIS & PELURUSAN PERSPEKTIF (HOMOGRAPHY CANVAS)
+  // =========================================================================
+  function detectDocumentCorners(img) {
+    // Heuristik deteksi tepi kertas berbasis kontras luminansi pada kanvas kecil
+    const sw = 160;
+    const sh = Math.round((img.height / img.width) * sw);
+    const c = document.createElement('canvas');
+    c.width = sw; c.height = sh;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, sw, sh);
+    const data = ctx.getImageData(0, 0, sw, sh).data;
+
+    let minX = sw * 0.08, maxX = sw * 0.92, minY = sh * 0.08, maxY = sh * 0.92;
+    let foundMinX = sw, foundMaxX = 0, foundMinY = sh, foundMaxY = 0;
+    let brightPixels = 0;
+
+    for (let y = 4; y < sh - 4; y++) {
+      for (let x = 4; x < sw - 4; x++) {
+        const i = (y * sw + x) * 4;
+        const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        if (lum > 145) {
+          brightPixels++;
+          if (x < foundMinX) foundMinX = x;
+          if (x > foundMaxX) foundMaxX = x;
+          if (y < foundMinY) foundMinY = y;
+          if (y > foundMaxY) foundMaxY = y;
+        }
+      }
+    }
+
+    if (brightPixels > sw * sh * 0.15 && (foundMaxX - foundMinX) > sw * 0.3 && (foundMaxY - foundMinY) > sh * 0.3) {
+      minX = foundMinX; maxX = foundMaxX; minY = foundMinY; maxY = foundMaxY;
+    }
+
+    return [
+      { x: minX / sw, y: minY / sh },
+      { x: maxX / sw, y: minY / sh },
+      { x: maxX / sw, y: maxY / sh },
+      { x: minX / sw, y: maxY / sh }
+    ];
+  }
+
+  async function openPerspectiveCropper(dataUrl, onDone) {
+    const img = await loadImageObj(dataUrl);
+    const modal = document.getElementById('modal-cropper');
+    const canvas = document.getElementById('crop-canvas');
+    const maxW = Math.min(window.innerWidth * 0.88, 720);
+    const maxH = window.innerHeight * 0.72;
+    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const corners = detectDocumentCorners(img);
+    state.cropContext = { img, corners, onDone };
+    modal.classList.remove('hidden');
+    updateCropHandlesUI();
+  }
+
+  function updateCropHandlesUI() {
+    if (!state.cropContext) return;
+    const canvas = document.getElementById('crop-canvas');
+    const w = canvas.clientWidth || canvas.width;
+    const h = canvas.clientHeight || canvas.height;
+    const pts = [];
+    state.cropContext.corners.forEach((pt, idx) => {
+      const px = pt.x * w;
+      const py = pt.y * h;
+      const handle = document.getElementById(`handle-${idx}`);
+      handle.style.left = px + 'px';
+      handle.style.top = py + 'px';
+      pts.push(`${px},${py}`);
+    });
+    document.getElementById('crop-polygon').setAttribute('points', pts.join(' '));
+  }
+
+  function initCropHandleDrag() {
+    let draggingIdx = -1;
+    const container = document.getElementById('crop-container');
+
+    const onMove = (clientX, clientY) => {
+      if (draggingIdx < 0 || !state.cropContext) return;
+      const rect = container.getBoundingClientRect();
+      const nx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      state.cropContext.corners[draggingIdx] = { x: nx, y: ny };
+      updateCropHandlesUI();
+    };
+
+    for (let i = 0; i < 4; i++) {
+      const h = document.getElementById(`handle-${i}`);
+      h.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        draggingIdx = i;
+        h.setPointerCapture(e.pointerId);
+      });
+      h.addEventListener('pointermove', (e) => onMove(e.clientX, e.clientY));
+      h.addEventListener('pointerup', () => { draggingIdx = -1; });
+    }
+  }
+
+  // Eliminasi Gauss untuk matriks Homografi 8x8 (Perspective Warp akurat)
+  function solveHomography(srcPts, dstPts) {
+    const A = [];
+    const B = [];
+    for (let i = 0; i < 4; i++) {
+      const { x: xs, y: ys } = srcPts[i];
+      const { x: xd, y: yd } = dstPts[i];
+      A.push([xd, yd, 1, 0, 0, 0, -xs * xd, -xs * yd]); B.push(xs);
+      A.push([0, 0, 0, xd, yd, 1, -ys * xd, -ys * yd]); B.push(ys);
+    }
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+      [A[i], A[maxRow]] = [A[maxRow], A[i]];
+      [B[i], B[maxRow]] = [B[maxRow], B[i]];
+      for (let k = i + 1; k < n; k++) {
+        const factor = A[k][i] / (A[i][i] || 1e-10);
+        B[k] -= factor * B[i];
+        for (let j = i; j < n; j++) A[k][j] -= factor * A[i][j];
+      }
+    }
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) {
+      let sum = B[i];
+      for (let j = i + 1; j < n; j++) sum -= A[i][j] * x[j];
+      x[i] = sum / (A[i][i] || 1e-10);
+    }
+    return [...x, 1];
+  }
+
+  function applyPerspectiveWarp() {
+    if (!state.cropContext) return;
+    const { img, corners, onDone } = state.cropContext;
+    const srcPts = corners.map((p) => ({ x: p.x * img.width, y: p.y * img.height }));
+
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    let outW = Math.round(Math.max(dist(srcPts[0], srcPts[1]), dist(srcPts[3], srcPts[2])));
+    let outH = Math.round(Math.max(dist(srcPts[0], srcPts[3]), dist(srcPts[1], srcPts[2])));
+    const maxDim = 1400;
+    if (Math.max(outW, outH) > maxDim) {
+      const r = maxDim / Math.max(outW, outH);
+      outW = Math.round(outW * r);
+      outH = Math.round(outH * r);
+    }
+    outW = Math.max(100, outW);
+    outH = Math.max(100, outH);
+
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = img.width; srcCanvas.height = img.height;
+    const sctx = srcCanvas.getContext('2d');
+    sctx.drawImage(img, 0, 0);
+    const srcData = sctx.getImageData(0, 0, img.width, img.height);
+
+    const dstCanvas = document.createElement('canvas');
+    dstCanvas.width = outW; dstCanvas.height = outH;
+    const dctx = dstCanvas.getContext('2d');
+    const dstData = dctx.createImageData(outW, outH);
+
+    const dstPts = [{ x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }];
+    const H = solveHomography(srcPts, dstPts);
+
+    const sw = img.width, sh = img.height;
+    const sBuf = srcData.data, dBuf = dstData.data;
+
+    for (let y = 0; y < outH; y++) {
+      for (let x = 0; x < outW; x++) {
+        const denom = H[6] * x + H[7] * y + H[8];
+        const sx = Math.round((H[0] * x + H[1] * y + H[2]) / denom);
+        const sy = Math.round((H[3] * x + H[4] * y + H[5]) / denom);
+        const di = (y * outW + x) * 4;
+        if (sx >= 0 && sx < sw && sy >= 0 && sy < sh) {
+          const si = (sy * sw + sx) * 4;
+          dBuf[di] = sBuf[si];
+          dBuf[di + 1] = sBuf[si + 1];
+          dBuf[di + 2] = sBuf[si + 2];
+          dBuf[di + 3] = 255;
+        } else {
+          dBuf[di] = dBuf[di + 1] = dBuf[di + 2] = 255;
+          dBuf[di + 3] = 255;
+        }
+      }
+    }
+    dctx.putImageData(dstData, 0, 0);
+    document.getElementById('modal-cropper').classList.add('hidden');
+    const resultUrl = dstCanvas.toDataURL('image/jpeg', 0.92);
+    state.cropContext = null;
+    onDone(resultUrl);
+  }
+
+  // =========================================================================
+  // 10. EDITOR GAMBAR (FILTER, BRIGHTNESS, CONTRAST, SHARPNESS, ROTATE)
+  // =========================================================================
+  function renderEditorView() {
+    const doc = getActiveDoc();
+    const emptyEl = document.getElementById('editor-empty-state');
+    const wrapEl = document.getElementById('editor-canvas-wrapper');
+    document.getElementById('editor-doc-title').value = doc ? doc.title : '';
+
+    if (!doc || doc.pages.length === 0) {
+      emptyEl.classList.remove('hidden');
+      wrapEl.classList.add('hidden');
+      document.getElementById('editor-page-indicator').textContent = 'Halaman 0 / 0';
+      document.getElementById('pages-grid').innerHTML = '';
+      return;
+    }
+
+    if (state.activePageIndex >= doc.pages.length) state.activePageIndex = doc.pages.length - 1;
+    const page = doc.pages[state.activePageIndex];
+    emptyEl.classList.add('hidden');
+    wrapEl.classList.remove('hidden');
+    document.getElementById('editor-page-indicator').textContent = `Halaman ${state.activePageIndex + 1} / ${doc.pages.length}`;
+
+    // Sinkronkan kontrol UI
+    document.getElementById('slider-brightness').value = page.brightness || 0;
+    document.getElementById('val-brightness').textContent = page.brightness || 0;
+    document.getElementById('slider-contrast').value = page.contrast || 0;
+    document.getElementById('val-contrast').textContent = page.contrast || 0;
+    document.getElementById('slider-sharpness').value = page.sharpness || 0;
+    document.getElementById('val-sharpness').textContent = page.sharpness || 0;
+
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      const active = btn.dataset.filter === (page.filter || 'original');
+      btn.classList.toggle('bg-emerald-600', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('border-emerald-600', active);
+      btn.classList.toggle('border-slate-200', !active);
+      btn.classList.toggle('dark:border-slate-700', !active);
+    });
+
+    drawPageToPreviewCanvas(page);
+    renderPagesGrid(doc);
+  }
+
+  async function drawPageToPreviewCanvas(page) {
+    const img = await loadImageObj(page.processedDataUrl);
+    const canvas = document.getElementById('editor-preview-canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+  }
+
+  async function reprocessActivePage() {
+    const doc = getActiveDoc();
+    if (!doc || !doc.pages[state.activePageIndex]) return;
+    const page = doc.pages[state.activePageIndex];
+    const img = await loadImageObj(page.originalDataUrl);
+
+    const rot = (page.rotation || 0) % 360;
+    const swap = rot === 90 || rot === 270;
+    const c = document.createElement('canvas');
+    c.width = swap ? img.height : img.width;
+    c.height = swap ? img.width : img.height;
+    const ctx = c.getContext('2d');
+
+    ctx.save();
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate((rot * Math.PI) / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    ctx.restore();
+
+    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const d = imgData.data;
+    const filter = page.filter || 'original';
+    const bright = (page.brightness || 0) * 1.4;
+    const contVal = page.contrast || 0;
+    const contFactor = (259 * (contVal + 255)) / (255 * (259 - contVal));
+
+    // Adaptive Shadow Removal (Hapus Bayangan berbasis rata-rata lokal)
+    let bgLuma = null;
+    if (filter === 'shadow') {
+      const small = document.createElement('canvas');
+      small.width = Math.max(16, Math.round(c.width / 24));
+      small.height = Math.max(16, Math.round(c.height / 24));
+      const sctx = small.getContext('2d');
+      sctx.drawImage(c, 0, 0, small.width, small.height);
+      const up = document.createElement('canvas');
+      up.width = c.width; up.height = c.height;
+      const uctx = up.getContext('2d');
+      uctx.drawImage(small, 0, 0, c.width, c.height);
+      bgLuma = uctx.getImageData(0, 0, c.width, c.height).data;
+    }
+
+    for (let i = 0; i < d.length; i += 4) {
+      let r = d[i], g = d[i + 1], b = d[i + 2];
+
+      if (filter === 'magic') {
+        // Memutihkan latar kertas & mempertajam warna tinta
+        r = Math.min(255, (r - 128) * 1.38 + 146);
+        g = Math.min(255, (g - 128) * 1.38 + 146);
+        b = Math.min(255, (b - 128) * 1.38 + 146);
+      } else if (filter === 'grayscale') {
+        const y = 0.299 * r + 0.587 * g + 0.114 * b;
+        r = g = b = y;
+      } else if (filter === 'bw') {
+        const y = 0.299 * r + 0.587 * g + 0.114 * b;
+        const v = y > 135 ? 255 : 15;
+        r = g = b = v;
+      } else if (filter === 'shadow' && bgLuma) {
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const bg = 0.299 * bgLuma[i] + 0.587 * bgLuma[i + 1] + 0.114 * bgLuma[i + 2];
+        const ratio = (lum / Math.max(20, bg)) * 245;
+        const clean = ratio > 205 ? 255 : Math.max(0, Math.min(255, (ratio - 128) * 1.5 + 128));
+        r = g = b = clean;
+      }
+
+      // Brightness & Contrast manual
+      r = contFactor * (r + bright - 128) + 128;
+      g = contFactor * (g + bright - 128) + 128;
+      b = contFactor * (b + bright - 128) + 128;
+
+      d[i] = Math.max(0, Math.min(255, r));
+      d[i + 1] = Math.max(0, Math.min(255, g));
+      d[i + 2] = Math.max(0, Math.min(255, b));
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    // Sharpness (Unsharp Mask ringan via konvolusi 3x3)
+    if ((page.sharpness || 0) > 0) {
+      applySharpen(ctx, c.width, c.height, page.sharpness / 100);
+    }
+
+    page.processedDataUrl = c.toDataURL('image/jpeg', 0.9);
+    await saveActiveDoc(false);
+    drawPageToPreviewCanvas(page);
+    renderPagesGrid(doc);
+  }
+
+  function applySharpen(ctx, w, h, amount) {
+    const src = ctx.getImageData(0, 0, w, h);
+    const out = ctx.createImageData(w, h);
+    const s = src.data, o = out.data;
+    const k = amount * 0.8;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        for (let c = 0; c < 3; c++) {
+          const val = s[i + c] * (1 + 4 * k) - k * (s[i - 4 + c] + s[i + 4 + c] + s[i - w * 4 + c] + s[i + w * 4 + c]);
+          o[i + c] = Math.max(0, Math.min(255, val));
+        }
+        o[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+  }
+
+  function renderPagesGrid(doc) {
+    const grid = document.getElementById('pages-grid');
+    grid.innerHTML = doc.pages.map((pg, idx) => `
+      <div draggable="true" data-page-idx="${idx}" class="page-thumb-card relative rounded-xl overflow-hidden border-2 cursor-pointer transition ${idx === state.activePageIndex ? 'border-emerald-500 ring-2 ring-emerald-400/40' : 'border-slate-200 dark:border-slate-700'}">
+        <img src="${pg.processedDataUrl}" class="w-full h-24 object-cover" />
+        <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold">${idx + 1}</div>
+        <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-1">
+          <button data-move-up="${idx}" class="p-0.5 hover:text-emerald-600 disabled:opacity-30" ${idx === 0 ? 'disabled' : ''} title="Pindah Kiri/Naik"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+          <button data-move-down="${idx}" class="p-0.5 hover:text-emerald-600 disabled:opacity-30" ${idx === doc.pages.length - 1 ? 'disabled' : ''} title="Pindah Kanan/Turun"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+        </div>
+      </div>`).join('');
+
+    let dragSrcIdx = -1;
+    grid.querySelectorAll('.page-thumb-card').forEach((card) => {
+      const idx = Number(card.dataset.pageIdx);
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        state.activePageIndex = idx;
+        renderEditorView();
+      });
+      card.addEventListener('dragstart', () => { dragSrcIdx = idx; });
+      card.addEventListener('dragover', (e) => e.preventDefault());
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (dragSrcIdx >= 0 && dragSrcIdx !== idx) {
+          const [moved] = doc.pages.splice(dragSrcIdx, 1);
+          doc.pages.splice(idx, 0, moved);
+          state.activePageIndex = idx;
+          await saveActiveDoc();
+          renderEditorView();
+        }
+      });
+    });
+
+    grid.querySelectorAll('[data-move-up]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const i = Number(btn.dataset.moveUp);
+        if (i <= 0) return;
+        [doc.pages[i - 1], doc.pages[i]] = [doc.pages[i], doc.pages[i - 1]];
+        state.activePageIndex = i - 1;
+        await saveActiveDoc();
+        renderEditorView();
+      });
+    });
+
+    grid.querySelectorAll('[data-move-down]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const i = Number(btn.dataset.moveDown);
+        if (i >= doc.pages.length - 1) return;
+        [doc.pages[i + 1], doc.pages[i]] = [doc.pages[i], doc.pages[i + 1]];
+        state.activePageIndex = i + 1;
+        await saveActiveDoc();
+        renderEditorView();
+      });
+    });
+
+    lucide.createIcons();
+  }
+
+  // =========================================================================
+  // 11. TANDA TANGAN DIGITAL, AUTO-TRANSPARAN, STEMPEL & WATERMARK
+  // =========================================================================
+  function initSignaturePad() {
+    const canvas = document.getElementById('signature-pad');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - r.left) * (canvas.width / r.width),
+        y: (e.clientY - r.top) * (canvas.height / r.height)
+      };
+    };
+
+    canvas.addEventListener('pointerdown', (e) => {
+      drawing = true;
+      canvas.setPointerCapture(e.pointerId);
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.strokeStyle = state.signaturePenColor;
+      ctx.lineWidth = 3.2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drawing) return;
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    });
+    canvas.addEventListener('pointerup', () => { drawing = false; });
+  }
+
+  // Penghapus Latar Putih Otomatis untuk Foto Tanda Tangan
+  async function removeWhiteBgFromSignature(file) {
+    const url = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file); });
+    const img = await loadImageObj(url);
+    const c = document.createElement('canvas');
+    c.width = Math.min(img.width, 600);
+    c.height = Math.round((img.height / img.width) * c.width);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (lum > 185) d[i + 3] = 0; // Transparan untuk latar putih/terang
+      else d[i + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    placeInteractiveOverlay(c.toDataURL('image/png'));
+  }
+
+  function createStampDataUrl(text, color) {
+    const c = document.createElement('canvas');
+    c.width = 360; c.height = 130;
+    const ctx = c.getContext('2d');
+    ctx.translate(180, 65);
+    ctx.rotate(-0.12);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(-150, -40, 300, 80);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-142, -32, 284, 64);
+    ctx.fillStyle = color;
+    ctx.font = '900 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text.toUpperCase(), 0, 2);
+    return c.toDataURL('image/png');
+  }
+
+  function placeInteractiveOverlay(dataUrl) {
+    const doc = getActiveDoc();
+    if (!doc || !doc.pages[state.activePageIndex]) return showToast('Pilih halaman terlebih dahulu.', 'warning');
+
+    const layer = document.getElementById('overlay-layer');
+    layer.innerHTML = '';
+    layer.style.pointerEvents = 'auto';
+
+    const imgEl = document.createElement('img');
+    imgEl.src = dataUrl;
+    imgEl.className = 'doc-overlay-item';
+    imgEl.style.left = '30%';
+    imgEl.style.top = '60%';
+    imgEl.style.width = '140px';
+
+    let startX = 0, startY = 0, origL = 0, origT = 0, dragging = false;
+    imgEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      imgEl.setPointerCapture(e.pointerId);
+      startX = e.clientX; startY = e.clientY;
+      origL = imgEl.offsetLeft; origT = imgEl.offsetTop;
+    });
+    imgEl.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      imgEl.style.left = (origL + (e.clientX - startX)) + 'px';
+      imgEl.style.top = (origT + (e.clientY - startY)) + 'px';
+    });
+    imgEl.addEventListener('pointerup', () => { dragging = false; });
+
+    layer.appendChild(imgEl);
+    state.activeOverlay = { dataUrl, el: imgEl };
+    document.getElementById('overlay-scale-slider').value = 140;
+    document.getElementById('active-overlay-bar').classList.remove('hidden');
+    showToast('Geser tanda tangan/stempel ke posisi diinginkan, lalu klik "Tempel ke Halaman".', 'info');
+  }
+
+  async function bakeOverlayToPage() {
+    if (!state.activeOverlay) return;
+    const doc = getActiveDoc();
+    const page = doc.pages[state.activePageIndex];
+    const previewCanvas = document.getElementById('editor-preview-canvas');
+    const imgEl = state.activeOverlay.el;
+
+    const scaleX = previewCanvas.width / previewCanvas.clientWidth;
+    const scaleY = previewCanvas.height / previewCanvas.clientHeight;
+    const drawX = imgEl.offsetLeft * scaleX;
+    const drawY = imgEl.offsetTop * scaleY;
+    const drawW = imgEl.clientWidth * scaleX;
+    const drawH = imgEl.clientHeight * scaleY;
+
+    const overlayImg = await loadImageObj(state.activeOverlay.dataUrl);
+    const ctx = previewCanvas.getContext('2d');
+    ctx.drawImage(overlayImg, drawX, drawY, drawW, drawH);
+
+    const newUrl = previewCanvas.toDataURL('image/jpeg', 0.92);
+    page.processedDataUrl = newUrl;
+    page.originalDataUrl = newUrl;
+    cancelOverlay();
+    await saveActiveDoc();
+    renderEditorView();
+    showToast('Elemen berhasil ditempel permanen ke halaman!', 'success');
+  }
+
+  function cancelOverlay() {
+    const layer = document.getElementById('overlay-layer');
+    layer.innerHTML = '';
+    layer.style.pointerEvents = 'none';
+    state.activeOverlay = null;
+    document.getElementById('active-overlay-bar').classList.add('hidden');
+  }
+
+  async function applyDiagonalWatermark() {
+    const text = document.getElementById('input-watermark-text').value.trim();
+    if (!text) return showToast('Masukkan teks watermark terlebih dahulu.', 'warning');
+    const doc = getActiveDoc();
+    if (!doc || !doc.pages[state.activePageIndex]) return;
+    const page = doc.pages[state.activePageIndex];
+
+    const img = await loadImageObj(page.processedDataUrl);
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    ctx.save();
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.28)';
+    ctx.font = `900 ${Math.max(28, Math.round(c.width / 14))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text.toUpperCase(), 0, 0);
+    ctx.restore();
+
+    const newUrl = c.toDataURL('image/jpeg', 0.92);
+    page.processedDataUrl = newUrl;
+    page.originalDataUrl = newUrl;
+    await saveActiveDoc();
+    renderEditorView();
+    showToast('Watermark diagonal berhasil diterapkan!', 'success');
+  }
+
+  // =========================================================================
+  // 12. OCR OFFLINE (TESSERACT) & GEMINI AI (ROTASI MULTI-API KEY)
+  // =========================================================================
+  function setAiProgress(show, label = '', pct = 0) {
+    const box = document.getElementById('ai-progress-box');
+    box.classList.toggle('hidden', !show);
+    if (show) {
+      document.getElementById('ai-progress-label').textContent = label;
+      document.getElementById('ai-progress-pct').textContent = `${Math.round(pct)}%`;
+      document.getElementById('ai-progress-bar').style.width = `${Math.max(5, Math.min(100, pct))}%`;
+    }
+  }
+
+  async function runOfflineOcr() {
+    const doc = getActiveDoc();
+    if (!doc || !doc.pages[state.activePageIndex]) return showToast('Tidak ada halaman aktif untuk di-OCR.', 'warning');
+    if (!window.Tesseract) return showToast('Tesseract.js belum termuat.', 'error');
+
+    setAiProgress(true, 'Menjalankan OCR Offline (Tesseract.js)...', 15);
+    try {
+      const page = doc.pages[state.activePageIndex];
+      const { data } = await window.Tesseract.recognize(page.processedDataUrl, 'eng+ind', {
+        logger: (m) => {
+          if (m.status === 'recognizing text') setAiProgress(true, 'Membaca teks secara offline...', 20 + m.progress * 75);
+        }
+      });
+      document.getElementById('ai-result-textarea').value = data.text.trim();
+      document.getElementById('ai-html-preview').classList.add('hidden');
+      doc.ocrText = data.text.trim();
+      await saveActiveDoc();
+      showToast('OCR Offline selesai!', 'success');
+    } catch (err) {
+      showToast('Gagal menjalankan OCR Offline: ' + err.message, 'error');
+    } finally {
+      setAiProgress(false);
+    }
+  }
+
+  async function callGeminiWithRotation(promptText, base64Image = null) {
+    if (state.apiKeys.length === 0) {
+      throw new Error('Belum ada Gemini API Key. Silakan tambahkan minimal 1 API Key di menu Pengaturan.');
+    }
+    const maxAttempts = state.apiKeys.length;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const idx = (state.apiKeyIndex + attempt) % state.apiKeys.length;
+      const apiKey = state.apiKeys[idx];
+      const parts = [{ text: promptText }];
+      if (base64Image) {
+        const cleanBase64 = base64Image.split(',')[1];
+        parts.push({ inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } });
+      }
+
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts }] })
+        });
+        if (res.status === 429 || res.status === 403) {
+          lastError = new Error(`Key #${idx + 1} terkena limit/ditolak (${res.status}), merotasi ke key berikutnya...`);
+          continue;
+        }
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+        }
+        const json = await res.json();
+        state.apiKeyIndex = (idx + 1) % state.apiKeys.length; // Rotasi round-robin
+        return json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error('Semua Gemini API Key gagal merespons.');
+  }
+
+  async function runGeminiTask(taskType) {
+    const doc = getActiveDoc();
+    if (!doc || !doc.pages[state.activePageIndex]) return showToast('Pilih dokumen & halaman terlebih dahulu.', 'warning');
+    const page = doc.pages[state.activePageIndex];
+    const lang = document.getElementById('ai-translate-lang').value;
+
+    const prompts = {
+      ocr: 'Ekstrak seluruh teks cetak maupun tulisan tangan dari gambar dokumen ini dengan sangat akurat. Jika terdapat tabel, format tabel tersebut dalam tag HTML <table><thead>...</thead><tbody>...</tbody></table> yang rapi tanpa markdown code fence agar siap diekspor ke Excel dan Word.',
+      summarize: 'Baca dokumen pada gambar ini lalu buat ringkasan terstruktur dalam Bahasa Indonesia mencakup: Judul/Topik, Poin Utama, Tanggal/Angka Penting, dan Kesimpulan.',
+      translate: `Baca seluruh isi dokumen pada gambar ini lalu terjemahkan secara akurat dan alami ke dalam bahasa ${lang}.`,
+      clean: 'Bersihkan noda, coretan, typo OCR, dan rekonstruksi ulang seluruh teks dokumen pada gambar ini menjadi naskah formal yang bersih, rapi, dan siap cetak.'
+    };
+
+    setAiProgress(true, 'Menghubungi Gemini AI (Rotasi API Key)...', 35);
+    try {
+      const output = await callGeminiWithRotation(prompts[taskType], page.processedDataUrl);
+      setAiProgress(true, 'Menyusun hasil...', 90);
+      const cleanedOutput = output.replace(/^```html\s*/i, '').replace(/```$/i, '').trim();
+      document.getElementById('ai-result-textarea').value = cleanedOutput;
+
+      const htmlPreview = document.getElementById('ai-html-preview');
+      if (cleanedOutput.includes('<table')) {
+        htmlPreview.innerHTML = cleanedOutput;
+        htmlPreview.classList.remove('hidden');
+      } else {
+        htmlPreview.classList.add('hidden');
+      }
+
+      if (taskType === 'summarize') doc.aiSummary = cleanedOutput;
+      else doc.ocrText = cleanedOutput;
+
+      if (taskType === 'clean') {
+        // Sekaligus aktifkan filter Hapus Bayangan di halaman untuk pembersihan visual
+        page.filter = 'shadow';
+        await reprocessActivePage();
+      }
+      await saveActiveDoc();
+      showToast('Proses Gemini AI selesai!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setAiProgress(false);
+    }
+  }
+
+  // Ekspor Hasil AI ke Word (.doc) & Excel (.xlsx via SheetJS)
+  function exportResultToWord() {
+    const content = document.getElementById('ai-result-textarea').value.trim();
+    if (!content) return showToast('Belum ada hasil teks/tabel untuk diekspor ke Word.', 'warning');
+    const doc = getActiveDoc();
+    const html = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+      <head><meta charset='utf-8'><title>${escapeHtml(doc?.title || 'Dokumen')}</title>
+      <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;} table{border-collapse:collapse;width:100%;} td,th{border:1px solid #333;padding:6px;}</style>
+      </head><body>${content.includes('<table') ? content : '<p>' + escapeHtml(content).replace(/\n/g, '<br>') + '</p>'}</body></html>`;
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    downloadBlob(blob, `${doc?.title || 'AlfianScan'}.doc`);
+    showToast('File Word (.doc) diunduh!', 'success');
+  }
+
+  function exportResultToExcel() {
+    if (!window.XLSX) return showToast('Pustaka SheetJS belum siap.', 'error');
+    const content = document.getElementById('ai-result-textarea').value.trim();
+    if (!content) return showToast('Belum ada hasil teks/tabel untuk diekspor ke Excel.', 'warning');
+    const doc = getActiveDoc();
+
+    const wb = window.XLSX.utils.book_new();
+    const previewEl = document.getElementById('ai-html-preview');
+    const tableEl = previewEl.querySelector('table');
+
+    let ws;
+    if (tableEl) {
+      ws = window.XLSX.utils.table_to_sheet(tableEl);
+    } else {
+      const rows = content.split('\n').map((line) => [line]);
+      ws = window.XLSX.utils.aoa_to_sheet([['Hasil Ekstraksi Alfian Scan Pro'], ...rows]);
+    }
+    window.XLSX.utils.book_append_sheet(wb, ws, 'HasilScan');
+    window.XLSX.writeFile(wb, `${doc?.title || 'AlfianScan'}.xlsx`);
+    showToast('File Excel (.xlsx) diunduh!', 'success');
+  }
+
+  // =========================================================================
+  // 13. EKSPOR PDF (jsPDF + UKURAN A4/F4/LETTER/AUTOFIT + PASSWORD + SHARE)
+  // =========================================================================
+  async function buildPdfBlob() {
+    const doc = getActiveDoc();
+    if (!doc || doc.pages.length === 0) throw new Error('Dokumen kosong. Pindai minimal 1 halaman.');
+    const { jsPDF } = window.jspdf;
+    const paper = document.getElementById('export-paper-size').value;
+    const quality = parseFloat(document.getElementById('export-quality').value || '0.72');
+    const password = document.getElementById('export-pdf-password').value;
+
+    const formats = {
+      a4: [210, 297],
+      f4: [215, 330],
+      letter: [215.9, 279.4]
+    };
+
+    const firstImg = await loadImageObj(doc.pages[0].processedDataUrl);
+    let initFormat = formats[paper] || [210, 297];
+    let initOrient = 'portrait';
+
+    if (paper === 'autofit') {
+      initFormat = [firstImg.width * 0.264583, firstImg.height * 0.264583];
+      initOrient = firstImg.width > firstImg.height ? 'landscape' : 'portrait';
+    }
+
+    const pdfOpts = { orientation: initOrient, unit: 'mm', format: initFormat, compress: true };
+    if (password) {
+      pdfOpts.encryption = {
+        userPassword: password,
+        ownerPassword: password + '_alfian',
+        userPermissions: ['print', 'copy']
+      };
+    }
+
+    const pdf = new jsPDF(pdfOpts);
+
+    for (let i = 0; i < doc.pages.length; i++) {
+      const img = await loadImageObj(doc.pages[i].processedDataUrl);
+      // Kompresi ulang sesuai kualitas pilihan
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      const compressedData = c.toDataURL('image/jpeg', quality);
+
+      let pageW, pageH;
+      if (paper === 'autofit') {
+        pageW = img.width * 0.264583;
+        pageH = img.height * 0.264583;
+        if (i > 0) pdf.addPage([pageW, pageH], pageW > pageH ? 'landscape' : 'portrait');
+        pdf.addImage(compressedData, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
+      } else {
+        const [fw, fh] = formats[paper];
+        if (i > 0) pdf.addPage([fw, fh], 'portrait');
+        const margin = 8;
+        const maxW = fw - margin * 2;
+        const maxH = fh - margin * 2;
+        const ratio = Math.min(maxW / img.width, maxH / img.height);
+        const w = img.width * ratio;
+        const h = img.height * ratio;
+        const x = (fw - w) / 2;
+        const y = (fh - h) / 2;
+        pdf.addImage(compressedData, 'JPEG', x, y, w, h, undefined, 'FAST');
+      }
+    }
+
+    return { blob: pdf.output('blob'), filename: `${doc.title || 'AlfianScan'}.pdf` };
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function handleExportPdf() {
+    try {
+      showToast('Menyusun file PDF...', 'info');
+      const { blob, filename } = await buildPdfBlob();
+      downloadBlob(blob, filename);
+      showToast(`PDF berhasil diunduh (${(blob.size / 1024).toFixed(0)} KB)!`, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function handleSharePdf() {
+    try {
+      const { blob, filename } = await buildPdfBlob();
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: filename, text: 'Dikirim dari Alfian Scan Pro', files: [file] });
+      } else {
+        downloadBlob(blob, filename);
+        showToast('Web Share tidak didukung di browser ini — PDF diunduh otomatis.', 'info');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') showToast('Gagal membagikan: ' + err.message, 'error');
+    }
+  }
+
+  function handlePrintDoc() {
+    const doc = getActiveDoc();
+    if (!doc || doc.pages.length === 0) return showToast('Tidak ada halaman untuk dicetak.', 'warning');
+    const win = window.open('', '_blank');
+    if (!win) return showToast('Popup diblokir browser. Izinkan popup untuk mencetak.', 'warning');
+    win.document.write(`
+      <html><head><title>${escapeHtml(doc.title)}</title>
+      <style>body{margin:0;text-align:center;} img{max-width:100%;page-break-after:always;display:block;margin:0 auto;}</style>
+      </head><body>${doc.pages.map((p) => `<img src="${p.processedDataUrl}" />`).join('')}</body></html>`);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+  }
+
+  // =========================================================================
+  // 14. PENGATURAN MULTI-API KEY & MANAJEMEN USER (ADMIN SUPABASE)
+  // =========================================================================
+  async function loadSettingsAndKeys() {
+    const localKeys = JSON.parse(localStorage.getItem('alfian_scan_gemini_keys') || '[]');
+    state.apiKeys = Array.isArray(localKeys) ? localKeys : [];
+
+    if (!IS_PREVIEW && supabase) {
+      try {
+        const { data } = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'gemini_api_keys').maybeSingle();
+        if (data?.setting_value && Array.isArray(data.setting_value)) {
+          state.apiKeys = data.setting_value;
+          localStorage.setItem('alfian_scan_gemini_keys', JSON.stringify(state.apiKeys));
+        }
+      } catch (err) {
+        console.warn('Gagal memuat API key dari Supabase:', err);
+      }
+    }
+    renderApiKeyList();
+  }
+
+  async function persistApiKeys() {
+    localStorage.setItem('alfian_scan_gemini_keys', JSON.stringify(state.apiKeys));
+    if (!IS_PREVIEW && supabase) {
+      await supabase.from('app_settings').upsert({
+        setting_key: 'gemini_api_keys',
+        setting_value: state.apiKeys,
+        updated_by: state.currentUser?.username || 'system',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'setting_key' }).catch(() => {});
+    }
+    renderApiKeyList();
+    renderDocumentsGrid();
+  }
+
+  function renderApiKeyList() {
+    const list = document.getElementById('apikey-list');
+    if (state.apiKeys.length === 0) {
+      list.innerHTML = `<p class="text-xs text-slate-400 italic">Belum ada API Key tersimpan. Tambahkan key untuk mengaktifkan AI Studio.</p>`;
+      return;
+    }
+    list.innerHTML = state.apiKeys.map((k, idx) => `
+      <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
+        <div class="flex items-center gap-2 font-mono">
+          <span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">#${idx + 1}</span>
+          <span>${k.slice(0, 8)}••••••••${k.slice(-4)}</span>
+        </div>
+        <button data-del-key="${idx}" class="text-rose-500 hover:underline font-bold">Hapus</button>
+      </div>`).join('');
+
+    list.querySelectorAll('[data-del-key]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.apiKeys.splice(Number(btn.dataset.delKey), 1);
+        persistApiKeys();
+        showToast('API Key dihapus.', 'info');
+      });
+    });
+  }
+
+  async function loadAdminUsers() {
+    if (IS_PREVIEW) {
+      state.usersList = [...PREVIEW_DUMMY_USERS];
+      renderAdminUsersTable();
+      return;
+    }
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from('app_users').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      state.usersList = data || [];
+      renderAdminUsersTable();
+    } catch (err) {
+      showToast('Gagal memuat daftar user: ' + err.message, 'error');
+    }
+  }
+
+  function renderAdminUsersTable() {
+    const tbody = document.getElementById('admin-users-tbody');
+    if (state.usersList.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400">Belum ada data user.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = state.usersList.map((u) => `
+      <tr>
+        <td class="py-2.5 pr-3 font-semibold">${escapeHtml(u.full_name)}</td>
+        <td class="py-2.5 pr-3 font-mono text-emerald-600 dark:text-emerald-400">${escapeHtml(u.username)}</td>
+        <td class="py-2.5 pr-3">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">
+            ${u.is_active ? 'Aktif' : 'Nonaktif'}
+          </span>
+        </td>
+        <td class="py-2.5 text-right">
+          <button data-del-user="${u.id}" class="text-rose-500 hover:underline font-bold">Hapus</button>
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('[data-del-user]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.delUser;
+        if (IS_PREVIEW) {
+          const idx = PREVIEW_DUMMY_USERS.findIndex((x) => x.id === id);
+          if (idx >= 0) PREVIEW_DUMMY_USERS.splice(idx, 1);
+          loadAdminUsers();
+          return;
+        }
+        const { error } = await supabase.from('app_users').delete().eq('id', id);
+        if (error) return showToast(error.message, 'error');
+        showToast('User dihapus.', 'info');
+        loadAdminUsers();
+      });
+    });
+  }
+
+  // =========================================================================
+  // 15. INISIALISASI EVENT LISTENER & BOOTSTRAP APLIKASI
+  // =========================================================================
+  function bindEvents() {
+    // Login & Preview Controls
+    document.getElementById('tab-login-user').onclick = () => setLoginTab('user');
+    document.getElementById('tab-login-admin').onclick = () => setLoginTab('admin');
+    document.getElementById('login-form').onsubmit = handleLoginSubmit;
+
+    if (IS_PREVIEW) {
+      document.getElementById('preview-banner').classList.remove('hidden');
+      document.getElementById('preview-quick-login').classList.remove('hidden');
+      document.getElementById('btn-quick-admin').onclick = () => enterApp({ username: 'admin@alfiantech.id', fullName: 'Admin Preview', role: 'admin' });
+      document.getElementById('btn-quick-user').onclick = () => enterApp({ username: 'operator1', fullName: 'Operator Demo', role: 'user' });
+    }
+
+    // Tema & Logout
+    document.getElementById('btn-theme-login').onclick = toggleTheme;
+    document.getElementById('btn-theme-toggle').onclick = toggleTheme;
+    document.getElementById('btn-theme-mobile').onclick = toggleTheme;
+    document.getElementById('btn-logout-desktop').onclick = handleLogout;
+    document.getElementById('btn-logout-mobile').onclick = handleLogout;
+
+    // PWA Install
+    document.getElementById('btn-install-pwa-login').onclick = triggerPwaInstall;
+    document.getElementById('btn-install-pwa-sidebar').onclick = triggerPwaInstall;
+    document.getElementById('btn-install-pwa-settings').onclick = triggerPwaInstall;
+    document.getElementById('btn-close-pwa-guide').onclick = () => document.getElementById('modal-pwa-guide').classList.add('hidden');
+    document.getElementById('btn-ok-pwa-guide').onclick = () => document.getElementById('modal-pwa-guide').classList.add('hidden');
+
+    // Navigasi
+    document.querySelectorAll('.nav-btn').forEach((btn) => {
+      btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+    document.getElementById('btn-quick-new-scan').onclick = async () => {
+      await createNewDocument(null, state.scanMode);
+      switchView('scan');
+    };
+    document.getElementById('btn-home-create-doc').onclick = async () => {
+      await createNewDocument();
+      switchView('scan');
+    };
+    document.getElementById('btn-home-sync').onclick = async () => {
+      for (const d of state.documents) await syncDocMetadataToSupabase(d);
+      renderDocumentsGrid();
+      showToast('Sinkronisasi selesai.', 'success');
+    };
+    document.getElementById('search-docs-input').oninput = renderDocumentsGrid;
+
+    // Kamera & Mode Scan
+    document.querySelectorAll('.scan-mode-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setScanMode(btn.dataset.scanMode));
+    });
+    document.getElementById('toggle-batch-scan').onchange = (e) => {
+      state.batchMode = e.target.checked;
+      state.batchCount = 0;
+      document.getElementById('btn-finish-batch').classList.add('hidden');
+    };
+    document.getElementById('btn-finish-batch').onclick = () => {
+      state.batchCount = 0;
+      document.getElementById('btn-finish-batch').classList.add('hidden');
+      switchView('editor');
+    };
+    document.getElementById('btn-reset-idcard').onclick = () => setScanMode('idcard');
+    document.getElementById('btn-start-camera').onclick = startCamera;
+    document.getElementById('btn-stop-camera').onclick = stopCamera;
+    document.getElementById('btn-toggle-torch').onclick = toggleTorch;
+    document.getElementById('btn-toggle-autocapture').onclick = toggleAutoCapture;
+    document.getElementById('btn-capture-photo').onclick = captureFromCamera;
+
+    document.getElementById('input-import-images').onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+      for (const f of files) {
+        const dataUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+        if (files.length > 1) {
+          await addPageToActiveDoc(dataUrl);
+        } else {
+          await processCapturedImage(dataUrl);
+        }
+      }
+      if (files.length > 1) {
+        showToast(`${files.length} foto berhasil diimpor!`, 'success');
+        switchView('editor');
+      }
+      e.target.value = '';
+    };
+
+    document.getElementById('input-import-pdf').onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (file) await handleImportPdf(file);
+      e.target.value = '';
+    };
+
+    // Cropper Controls
+    initCropHandleDrag();
+    document.getElementById('btn-crop-auto').onclick = () => {
+      if (!state.cropContext) return;
+      state.cropContext.corners = detectDocumentCorners(state.cropContext.img);
+      updateCropHandlesUI();
+    };
+    document.getElementById('btn-crop-cancel').onclick = () => {
+      document.getElementById('modal-cropper').classList.add('hidden');
+      state.cropContext = null;
+    };
+    document.getElementById('btn-crop-apply').onclick = applyPerspectiveWarp;
+
+    // Editor Controls
+    document.getElementById('editor-doc-title').onchange = async (e) => {
+      const doc = getActiveDoc();
+      if (!doc) return;
+      doc.title = e.target.value.trim() || generateAutoDocName();
+      await saveActiveDoc();
+    };
+    document.getElementById('btn-auto-rename').onclick = async () => {
+      const doc = getActiveDoc();
+      if (!doc) return;
+      doc.title = generateAutoDocName();
+      document.getElementById('editor-doc-title').value = doc.title;
+      await saveActiveDoc();
+      showToast('Nama file diperbarui otomatis.', 'info');
+    };
+    document.getElementById('btn-add-more-pages').onclick = () => switchView('scan');
+    document.getElementById('btn-goto-ai-export').onclick = () => switchView('ai');
+
+    document.getElementById('btn-open-cropper').onclick = () => {
+      const doc = getActiveDoc();
+      const page = doc?.pages[state.activePageIndex];
+      if (!page) return;
+      openPerspectiveCropper(page.originalDataUrl, async (warpedUrl) => {
+        page.originalDataUrl = warpedUrl;
+        page.processedDataUrl = warpedUrl;
+        await reprocessActivePage();
+        renderEditorView();
+      });
+    };
+    document.getElementById('btn-rotate-page').onclick = async () => {
+      const doc = getActiveDoc();
+      const page = doc?.pages[state.activePageIndex];
+      if (!page) return;
+      page.rotation = ((page.rotation || 0) + 90) % 360;
+      await reprocessActivePage();
+    };
+    document.getElementById('btn-delete-page').onclick = async () => {
+      const doc = getActiveDoc();
+      if (!doc || !doc.pages[state.activePageIndex]) return;
+      const ok = await showConfirm('Hapus Halaman', 'Hapus halaman yang sedang aktif ini?');
+      if (!ok) return;
+      doc.pages.splice(state.activePageIndex, 1);
+      state.activePageIndex = Math.max(0, state.activePageIndex - 1);
+      await saveActiveDoc();
+      renderEditorView();
+    };
+
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const doc = getActiveDoc();
+        const page = doc?.pages[state.activePageIndex];
+        if (!page) return;
+        page.filter = btn.dataset.filter;
+        renderEditorView();
+        await reprocessActivePage();
+      });
+    });
+
+    ['brightness', 'contrast', 'sharpness'].forEach((prop) => {
+      const slider = document.getElementById(`slider-${prop}`);
+      slider.oninput = (e) => {
+        document.getElementById(`val-${prop}`).textContent = e.target.value;
+      };
+      slider.onchange = async (e) => {
+        const doc = getActiveDoc();
+        const page = doc?.pages[state.activePageIndex];
+        if (!page) return;
+        page[prop] = Number(e.target.value);
+        await reprocessActivePage();
+      };
+    });
+
+    document.getElementById('btn-reset-adjustments').onclick = async () => {
+      const doc = getActiveDoc();
+      const page = doc?.pages[state.activePageIndex];
+      if (!page) return;
+      page.filter = 'original'; page.brightness = 0; page.contrast = 0; page.sharpness = 0;
+      renderEditorView();
+      await reprocessActivePage();
+    };
+
+    // Signature, Stamp, Watermark
+    initSignaturePad();
+    document.getElementById('btn-open-sign-modal').onclick = () => document.getElementById('modal-signature').classList.remove('hidden');
+    document.getElementById('btn-close-sign').onclick = () => document.getElementById('modal-signature').classList.add('hidden');
+    document.getElementById('btn-clear-sign').onclick = () => {
+      const c = document.getElementById('signature-pad');
+      c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    };
+    document.querySelectorAll('.pen-color-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.signaturePenColor = btn.dataset.pen;
+        document.querySelectorAll('.pen-color-btn').forEach((b) => b.classList.remove('ring-2', 'ring-emerald-500'));
+        btn.classList.add('ring-2', 'ring-emerald-500');
+      });
+    });
+    document.getElementById('btn-use-sign').onclick = () => {
+      const c = document.getElementById('signature-pad');
+      document.getElementById('modal-signature').classList.add('hidden');
+      placeInteractiveOverlay(c.toDataURL('image/png'));
+    };
+    document.getElementById('input-upload-sign').onchange = (e) => {
+      const f = e.target.files?.[0];
+      if (f) removeWhiteBgFromSignature(f);
+      e.target.value = '';
+    };
+    document.getElementById('btn-add-stamp').onclick = () => {
+      const txt = document.getElementById('input-stamp-text').value.trim() || 'LUNAS';
+      const col = document.getElementById('select-stamp-color').value;
+      placeInteractiveOverlay(createStampDataUrl(txt, col));
+    };
+    document.querySelectorAll('.preset-stamp-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById('input-stamp-text').value = btn.dataset.presetStamp;
+      });
+    });
+    document.getElementById('overlay-scale-slider').oninput = (e) => {
+      if (state.activeOverlay) state.activeOverlay.el.style.width = e.target.value + 'px';
+    };
+    document.getElementById('btn-cancel-overlay').onclick = cancelOverlay;
+    document.getElementById('btn-bake-overlay').onclick = bakeOverlayToPage;
+    document.getElementById('btn-apply-watermark').onclick = applyDiagonalWatermark;
+
+    // AI & Export
+    document.getElementById('btn-export-pdf').onclick = handleExportPdf;
+    document.getElementById('btn-share-pdf').onclick = handleSharePdf;
+    document.getElementById('btn-print-doc').onclick = handlePrintDoc;
+    document.getElementById('btn-ocr-offline').onclick = runOfflineOcr;
+    document.getElementById('btn-ai-ocr').onclick = () => runGeminiTask('ocr');
+    document.getElementById('btn-ai-summarize').onclick = () => runGeminiTask('summarize');
+    document.getElementById('btn-ai-translate').onclick = () => runGeminiTask('translate');
+    document.getElementById('btn-ai-clean').onclick = () => runGeminiTask('clean');
+    document.getElementById('btn-copy-ai-result').onclick = () => {
+      const txt = document.getElementById('ai-result-textarea').value;
+      if (!txt) return;
+      navigator.clipboard.writeText(txt).then(() => showToast('Teks disalin ke clipboard!', 'success'));
+    };
+    document.getElementById('btn-export-word').onclick = exportResultToWord;
+    document.getElementById('btn-export-excel').onclick = exportResultToExcel;
+
+    // Settings & Admin
+    document.getElementById('btn-add-apikey').onclick = () => {
+      const inp = document.getElementById('input-new-apikey');
+      const val = inp.value.trim();
+      if (!val) return showToast('Masukkan API Key yang valid.', 'warning');
+      state.apiKeys.push(val);
+      inp.value = '';
+      persistApiKeys();
+      showToast('Gemini API Key berhasil ditambahkan!', 'success');
+    };
+    document.getElementById('btn-test-gemini').onclick = async () => {
+      try {
+        showToast('Menguji koneksi Gemini AI...', 'info');
+        const res = await callGeminiWithRotation('Balas dengan satu kata: OK');
+        showToast('Koneksi Gemini AI Berhasil: ' + res.slice(0, 20), 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+    document.getElementById('btn-refresh-users').onclick = loadAdminUsers;
+    document.getElementById('form-add-user').onsubmit = async (e) => {
+      e.preventDefault();
+      const full_name = document.getElementById('new-user-fullname').value.trim();
+      const username = document.getElementById('new-user-username').value.trim();
+      const password = document.getElementById('new-user-password').value;
+      if (IS_PREVIEW) {
+        PREVIEW_DUMMY_USERS.unshift({ id: 'prev-' + Date.now(), full_name, username, password, role: 'user', is_active: true });
+        e.target.reset();
+        loadAdminUsers();
+        return showToast('User ditambahkan di memori preview.', 'success');
+      }
+      const { error } = await supabase.from('app_users').insert([{ full_name, username, password, role: 'user', is_active: true }]);
+      if (error) return showToast('Gagal tambah user: ' + error.message, 'error');
+      e.target.reset();
+      showToast('User baru berhasil disimpan ke Supabase!', 'success');
+      loadAdminUsers();
+    };
+
+    // Online / Offline Indicator
+    const updateOnlineBadge = () => {
+      const el = document.getElementById('offline-indicator');
+      if (navigator.onLine) {
+        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Online';
+      } else {
+        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Mode Offline';
+      }
+    };
+    window.addEventListener('online', updateOnlineBadge);
+    window.addEventListener('offline', updateOnlineBadge);
+    updateOnlineBadge();
+  }
+
+  // Bootstrap Aplikasi
+  async function bootstrap() {
+    if (localStorage.getItem('alfian_scan_theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+    initPWA();
+    bindEvents();
+    lucide.createIcons();
+
+    // Cek sesi aktif saat mode produksi
+    if (!IS_PREVIEW && supabase) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          return enterApp({
+            username: data.session.user.email,
+            fullName: 'Administrator',
+            role: 'admin',
+            email: data.session.user.email
+          });
+        }
+        const savedUser = localStorage.getItem('alfian_scan_user_session');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed?.username) {
+            return enterApp({ username: parsed.username, fullName: parsed.full_name, role: parsed.role || 'user' });
+          }
+        }
+      } catch (err) {
+        console.warn('Cek sesi gagal:', err);
+      }
+    }
+  }
+
+  bootstrap();
+</script>
+</body>
+</html>
