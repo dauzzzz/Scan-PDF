@@ -757,6 +757,25 @@
                   <span id="export-scope-info" class="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">Pengaturan berlaku ke semua halaman PDF.</span>
                   <button id="btn-apply-paper-all" type="button" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0">Terapkan Semua</button>
                 </div>
+
+                <!-- Pemilih Halaman & Pratinjau Tata Letak Kertas PDF (Live Preview) -->
+                <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Pratinjau Kertas PDF</span>
+                    <select id="export-active-page-select" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold"></select>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <div class="w-24 h-28 bg-slate-200 dark:bg-slate-800 rounded-lg flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                      <canvas id="pdf-layout-preview-canvas" width="90" height="108" class="max-w-full max-h-full shadow-sm rounded-[2px]"></canvas>
+                    </div>
+                    <div id="pdf-layout-preview-meta" class="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 leading-snug">
+                      <p class="font-bold text-emerald-700 dark:text-emerald-400">A4 • Auto</p>
+                      <p>Mode: Fit to Page</p>
+                      <p>Margin: 5 mm (Tengah)</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label class="block text-xs font-bold mb-1">Kompresi Kualitas Gambar (DPI)</label>
                   <select id="export-quality" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
@@ -930,6 +949,7 @@
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button id="btn-crop-auto" class="px-3 py-1.5 rounded-lg bg-slate-800 text-emerald-400 text-xs font-bold">Auto-Detect</button>
+        <button id="btn-crop-full" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs font-bold">Penuh</button>
         <button id="btn-crop-cancel" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-bold">Batal</button>
         <button id="btn-crop-apply-next" class="hidden px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold">Simpan & Scan Lagi</button>
         <button id="btn-crop-apply" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Terapkan Warp</button>
@@ -1830,7 +1850,7 @@
   }
 
   // Normalisasi resolusi gambar agar scan tak terbatas tetap ringan & tajam
-  async function normalizeImageDataUrl(dataUrl, maxDim = 1600, quality = 0.86) {
+  async function normalizeImageDataUrl(dataUrl, maxDim = 2000, quality = 0.88) {
     const img = await loadImageObj(dataUrl);
     let w = img.width;
     let h = img.height;
@@ -1853,16 +1873,17 @@
     c.width = video.videoWidth;
     c.height = video.videoHeight;
     c.getContext('2d').drawImage(video, 0, 0);
-    processCapturedImage(c.toDataURL('image/jpeg', 0.9));
+    processCapturedImage(c.toDataURL('image/jpeg', 0.92));
   }
 
   async function processCapturedImage(rawDataUrl) {
     if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
-    const dataUrl = await normalizeImageDataUrl(rawDataUrl, 1600, 0.86);
+    const dataUrl = await normalizeImageDataUrl(rawDataUrl, 2000, 0.88);
 
     // MODE ID CARD / KTP (Depan + Belakang -> 1 Halaman A4)
     if (state.scanMode === 'idcard') {
-      const processedCardUrl = state.autoCropEnabled ? await autoCropAndDewarp(dataUrl) : dataUrl;
+      const cardRes = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
+      const processedCardUrl = cardRes.warpedUrl;
       if (!state.idCardFrontDataUrl) {
         state.idCardFrontDataUrl = processedCardUrl;
         document.getElementById('idcard-step-text').textContent = 'Langkah 2/2 — Tampak Depan tersimpan! Sekarang foto/unggah Tampak Belakang.';
@@ -1872,7 +1893,7 @@
         const mergedA4 = await combineIdCardToA4(state.idCardFrontDataUrl, processedCardUrl);
         state.idCardFrontDataUrl = null;
         document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
-        await addPageToActiveDoc(mergedA4);
+        await addPageToActiveDoc(mergedA4, mergedA4, null);
         showToast('ID Card Depan & Belakang berhasil digabung ke 1 halaman A4!', 'success');
         if (!state.batchMode) switchView('editor');
         return;
@@ -1881,10 +1902,10 @@
 
     // MODE BUKU (Belah 2 halaman kiri & kanan otomatis)
     if (state.scanMode === 'book') {
-      const baseBookUrl = state.autoCropEnabled ? await autoCropAndDewarp(dataUrl) : dataUrl;
-      const [leftUrl, rightUrl] = await splitBookPages(baseBookUrl);
-      await addPageToActiveDoc(leftUrl);
-      await addPageToActiveDoc(rightUrl);
+      const bookRes = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
+      const [leftUrl, rightUrl] = await splitBookPages(bookRes.warpedUrl);
+      await addPageToActiveDoc(leftUrl, leftUrl, null);
+      await addPageToActiveDoc(rightUrl, rightUrl, null);
       showToast('Mode Buku: 2 halaman (Kiri & Kanan) berhasil dipisahkan!', 'success');
       if (!state.batchMode) switchView('editor');
       return;
@@ -1892,8 +1913,8 @@
 
     // MODE DOKUMEN STANDAR
     if (state.batchMode) {
-      const finalUrl = state.autoCropEnabled ? await autoCropAndDewarp(dataUrl) : dataUrl;
-      await addPageToActiveDoc(finalUrl);
+      const res = state.autoCropEnabled ? await autoCropAndDewarpDetailed(dataUrl) : { warpedUrl: dataUrl, corners: null };
+      await addPageToActiveDoc(res.warpedUrl, dataUrl, res.corners);
       const total = getActiveDoc()?.pages.length || 0;
       state.batchCount = total;
       document.getElementById('batch-count-badge').textContent = total;
@@ -1905,8 +1926,8 @@
         'success'
       );
     } else {
-      openPerspectiveCropper(dataUrl, async (warpedUrl, continueScanning) => {
-        await addPageToActiveDoc(warpedUrl);
+      openPerspectiveCropper(dataUrl, async (warpedUrl, continueScanning, chosenCorners) => {
+        await addPageToActiveDoc(warpedUrl, dataUrl, chosenCorners);
         if (continueScanning) {
           const total = getActiveDoc()?.pages.length || 0;
           showToast(`Halaman #${total} disimpan! Silakan scan halaman berikutnya.`, 'success');
@@ -1917,13 +1938,15 @@
     }
   }
 
-  async function addPageToActiveDoc(dataUrl) {
+  async function addPageToActiveDoc(dataUrl, rawDataUrl = null, cropCorners = null) {
     let doc = getActiveDoc();
     if (!doc) doc = await createNewDocument(null, state.scanMode);
     doc.pages.push({
       id: 'pg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5),
+      rawDataUrl: rawDataUrl || dataUrl,
       originalDataUrl: dataUrl,
       processedDataUrl: dataUrl,
+      cropCorners: cropCorners || null,
       filter: 'original',
       brightness: 0,
       contrast: 0,
@@ -2006,10 +2029,10 @@
   }
 
   // =========================================================================
-  // 9. DETEKSI TEPI OTOMATIS (SOBEL/KONTUR CANVAS) & PELURUSAN PERSPEKTIF (BILINEAR + LOUPE)
+  // 9. DETEKSI TEPI OTOMATIS (KONTUR TERBESAR + SOBEL CANVAS) & PELURUSAN PERSPEKTIF (BILINEAR + LOUPE)
   // =========================================================================
   function detectDocumentCorners(img) {
-    const sw = 220;
+    const sw = 240;
     const sh = Math.max(80, Math.round((img.height / img.width) * sw));
     const c = document.createElement('canvas');
     c.width = sw; c.height = sh;
@@ -2017,9 +2040,10 @@
     ctx.drawImage(img, 0, 0, sw, sh);
     const data = ctx.getImageData(0, 0, sw, sh).data;
 
-    // 1. Konversi ke Grayscale & hitung rata-rata tepi luar (latar meja)
+    // 1. Grayscale & statistik tepi latar (desk/meja)
     const gray = new Float32Array(sw * sh);
-    let borderSum = 0, borderCount = 0;
+    let borderSum = 0, borderSqSum = 0, borderCount = 0;
+    let centerSum = 0, centerCount = 0;
     for (let y = 0; y < sh; y++) {
       for (let x = 0; x < sw; x++) {
         const i = (y * sw + x) * 4;
@@ -2027,13 +2051,20 @@
         gray[y * sw + x] = g;
         if (x < 6 || x >= sw - 6 || y < 6 || y >= sh - 6) {
           borderSum += g;
+          borderSqSum += g * g;
           borderCount++;
+        } else if (x > sw * 0.25 && x < sw * 0.75 && y > sh * 0.25 && y < sh * 0.75) {
+          centerSum += g;
+          centerCount++;
         }
       }
     }
     const bgMean = borderCount > 0 ? borderSum / borderCount : 90;
+    const bgStd = borderCount > 0 ? Math.sqrt(Math.max(0, borderSqSum / borderCount - bgMean * bgMean)) : 20;
+    const centerMean = centerCount > 0 ? centerSum / centerCount : 180;
+    const docIsBrighter = centerMean >= bgMean;
 
-    // 2. Gaussian Blur ringan 3x3 untuk meredam noise
+    // 2. Gaussian Blur 3x3 untuk meredam noise tekstur meja
     const blur = new Float32Array(sw * sh);
     for (let y = 1; y < sh - 1; y++) {
       for (let x = 1; x < sw - 1; x++) {
@@ -2046,59 +2077,91 @@
       }
     }
 
-    // 3. Sobel Edge Gradient + Masker Kertas (kontras terhadap latar tepi)
-    const paperThreshold = Math.max(bgMean + 24, 130);
-    let tl = { x: sw, y: sh, score: Infinity };
-    let tr = { x: 0, y: sh, score: -Infinity };
-    let br = { x: 0, y: 0, score: -Infinity };
-    let bl = { x: sw, y: 0, score: Infinity };
-    let candidateCount = 0;
-
-    for (let y = 4; y < sh - 4; y++) {
-      for (let x = 4; x < sw - 4; x++) {
+    // 3. Masker biner dokumen (memisahkan kertas dari latar meja + Sobel edge)
+    const contrastGap = Math.max(22, Math.min(48, bgStd * 1.35 + 16));
+    const mask = new Uint8Array(sw * sh);
+    for (let y = 2; y < sh - 2; y++) {
+      for (let x = 2; x < sw - 2; x++) {
         const idx = y * sw + x;
         const gx = -blur[idx - sw - 1] + blur[idx - sw + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + sw - 1] + blur[idx + sw + 1];
         const gy = -blur[idx - sw - 1] - 2 * blur[idx - sw] - blur[idx - sw + 1] + blur[idx + sw - 1] + 2 * blur[idx + sw] + blur[idx + sw + 1];
         const mag = Math.hypot(gx, gy);
 
-        const isPaperEdge = (mag > 48 && blur[idx] > bgMean + 12) || (blur[idx] > paperThreshold && Math.abs(blur[idx] - bgMean) > 32);
-        if (isPaperEdge) {
-          candidateCount++;
-          const sum = x + y;
-          const diff = x - y;
-          if (sum < tl.score) tl = { x, y, score: sum };
-          if (diff > tr.score) tr = { x, y, score: diff };
-          if (sum > br.score) br = { x, y, score: sum };
-          if (diff < bl.score) bl = { x, y, score: diff };
+        const diffFromBg = docIsBrighter ? (blur[idx] - bgMean) : (bgMean - blur[idx]);
+        if (diffFromBg > contrastGap || (mag > 52 && Math.abs(blur[idx] - bgMean) > 14)) {
+          mask[idx] = 1;
         }
       }
     }
 
-    // Validasi bentuk segiempat agar tidak terlalu kecil atau rusak
+    // 4. Cari komponen terhubung terbesar (Largest Contour / Connected Component) agar kebal noise meja
+    const visited = new Uint8Array(sw * sh);
+    const queue = new Int32Array(sw * sh);
+    let bestSize = 0;
+    let bestBounds = null;
+
+    for (let y = 3; y < sh - 3; y++) {
+      for (let x = 3; x < sw - 3; x++) {
+        const startIdx = y * sw + x;
+        if (!mask[startIdx] || visited[startIdx]) continue;
+
+        let head = 0, tail = 0;
+        queue[tail++] = startIdx;
+        visited[startIdx] = 1;
+
+        let tl = { x: sw, y: sh, score: Infinity };
+        let tr = { x: 0, y: sh, score: -Infinity };
+        let br = { x: 0, y: 0, score: -Infinity };
+        let bl = { x: sw, y: 0, score: Infinity };
+
+        while (head < tail) {
+          const cur = queue[head++];
+          const cy = (cur / sw) | 0;
+          const cx = cur - cy * sw;
+
+          const sum = cx + cy;
+          const diff = cx - cy;
+          if (sum < tl.score) tl = { x: cx, y: cy, score: sum };
+          if (diff > tr.score) tr = { x: cx, y: cy, score: diff };
+          if (sum > br.score) br = { x: cx, y: cy, score: sum };
+          if (diff < bl.score) bl = { x: cx, y: cy, score: diff };
+
+          // 4-tetangga
+          if (cx > 2) { const n = cur - 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cx < sw - 3) { const n = cur + 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cy > 2) { const n = cur - sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cy < sh - 3) { const n = cur + sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+        }
+
+        if (tail > bestSize) {
+          bestSize = tail;
+          bestBounds = [tl, tr, br, bl];
+        }
+      }
+    }
+
     const defaultQuad = [
-      { x: 0.05, y: 0.05 },
-      { x: 0.95, y: 0.05 },
-      { x: 0.95, y: 0.95 },
-      { x: 0.05, y: 0.95 }
+      { x: 0.04, y: 0.04 },
+      { x: 0.96, y: 0.04 },
+      { x: 0.96, y: 0.96 },
+      { x: 0.04, y: 0.96 }
     ];
 
-    if (candidateCount < sw * sh * 0.04) return defaultQuad;
+    if (!bestBounds || bestSize < sw * sh * 0.08) return defaultQuad;
 
-    const pts = [
-      { x: tl.x / sw, y: tl.y / sh },
-      { x: tr.x / sw, y: tr.y / sh },
-      { x: br.x / sw, y: br.y / sh },
-      { x: bl.x / sw, y: bl.y / sh }
-    ];
+    const pts = bestBounds.map((pt) => ({
+      x: Math.max(0.01, Math.min(0.99, pt.x / sw)),
+      y: Math.max(0.01, Math.min(0.99, pt.y / sh))
+    }));
 
-    // Hitung luas poligon (Shoelace formula) — harus minimal 18% dari frame
+    // Validasi luas segiempat (Shoelace formula) — minimal 16% luas frame
     let area = 0;
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
       area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
     }
     area = Math.abs(area) * 0.5;
-    if (area < 0.18 || pts[1].x <= pts[0].x + 0.15 || pts[2].y <= pts[1].y + 0.15) {
+    if (area < 0.16 || pts[1].x <= pts[0].x + 0.14 || pts[2].y <= pts[1].y + 0.14) {
       return defaultQuad;
     }
 
@@ -2111,7 +2174,7 @@
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     let outW = Math.round(Math.max(dist(srcPts[0], srcPts[1]), dist(srcPts[3], srcPts[2])));
     let outH = Math.round(Math.max(dist(srcPts[0], srcPts[3]), dist(srcPts[1], srcPts[2])));
-    const maxDim = 1600;
+    const maxDim = 2000;
     if (Math.max(outW, outH) > maxDim) {
       const r = maxDim / Math.max(outW, outH);
       outW = Math.round(outW * r);
@@ -2174,23 +2237,29 @@
       }
     }
     dctx.putImageData(dstData, 0, 0);
-    return dstCanvas.toDataURL('image/jpeg', 0.9);
+    return dstCanvas.toDataURL('image/jpeg', 0.92);
   }
 
-  // Auto-Crop & Perspective Correction otomatis untuk kamera & galeri
-  async function autoCropAndDewarp(dataUrl) {
+  // Auto-Crop & Perspective Correction otomatis (mengembalikan hasil warp + koordinat 4 sudut)
+  async function autoCropAndDewarpDetailed(dataUrl) {
     try {
       const img = await loadImageObj(dataUrl);
       const corners = detectDocumentCorners(img);
-      return warpImageWithCorners(img, corners);
+      const warpedUrl = warpImageWithCorners(img, corners);
+      return { warpedUrl, corners };
     } catch (err) {
       console.warn('Auto-crop dilewati:', err);
-      return dataUrl;
+      return { warpedUrl: dataUrl, corners: null };
     }
   }
 
+  async function autoCropAndDewarp(dataUrl) {
+    const res = await autoCropAndDewarpDetailed(dataUrl);
+    return res.warpedUrl;
+  }
+
   // Render Kaca Pembesar (Loupe) saat menyeret sudut crop manual
-  function renderCropLoupe(nx, ny, clientX) {
+  function renderCropLoupe(nx, ny, clientX, cornerIdx = 0) {
     const loupe = document.getElementById('crop-loupe');
     if (!loupe || !state.cropContext) return;
     loupe.classList.remove('hidden');
@@ -2208,7 +2277,7 @@
     const { img } = state.cropContext;
     const ctx = loupe.getContext('2d');
     const size = loupe.width;
-    const zoom = 2.8;
+    const zoom = 3.0;
     const srcW = size / zoom;
     const srcH = size / zoom;
     const cx = nx * img.width;
@@ -2229,13 +2298,23 @@
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, 5, 0, Math.PI * 2);
     ctx.stroke();
+
+    // Label sudut aktif
+    const labels = ['Kiri Atas', 'Kanan Atas', 'Kanan Bawah', 'Kiri Bawah'];
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+    ctx.fillRect(16, size - 22, size - 32, 16);
+    ctx.fillStyle = '#6ee7b7';
+    ctx.font = 'bold 9px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labels[cornerIdx] || 'Sudut', size / 2, size - 14);
   }
 
   function hideCropLoupe() {
     document.getElementById('crop-loupe')?.classList.add('hidden');
   }
 
-  async function openPerspectiveCropper(dataUrl, onDone, showScanNext = false) {
+  async function openPerspectiveCropper(dataUrl, onDone, showScanNext = false, initialCorners = null) {
     const img = await loadImageObj(dataUrl);
     const modal = document.getElementById('modal-cropper');
     const canvas = document.getElementById('crop-canvas');
@@ -2247,7 +2326,9 @@
     canvas.height = Math.round(img.height * scale);
     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    const corners = detectDocumentCorners(img);
+    const corners = Array.isArray(initialCorners) && initialCorners.length === 4
+      ? initialCorners.map((p) => ({ x: p.x, y: p.y }))
+      : detectDocumentCorners(img);
     state.cropContext = { img, corners, onDone };
     document.getElementById('btn-crop-apply-next').classList.toggle('hidden', !showScanNext);
     hideCropLoupe();
@@ -2283,7 +2364,7 @@
       const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
       state.cropContext.corners[draggingIdx] = { x: nx, y: ny };
       updateCropHandlesUI();
-      renderCropLoupe(nx, ny, clientX);
+      renderCropLoupe(nx, ny, clientX, draggingIdx);
     };
 
     for (let i = 0; i < 4; i++) {
@@ -2293,7 +2374,7 @@
         draggingIdx = i;
         h.setPointerCapture(e.pointerId);
         const pt = state.cropContext?.corners[i];
-        if (pt) renderCropLoupe(pt.x, pt.y, e.clientX);
+        if (pt) renderCropLoupe(pt.x, pt.y, e.clientX, i);
       });
       h.addEventListener('pointermove', (e) => onMove(e.clientX, e.clientY));
       h.addEventListener('pointerup', () => {
@@ -2341,11 +2422,12 @@
   function applyPerspectiveWarp(continueScanning = false) {
     if (!state.cropContext) return;
     const { img, corners, onDone } = state.cropContext;
+    const chosenCorners = corners.map((p) => ({ x: p.x, y: p.y }));
     const resultUrl = warpImageWithCorners(img, corners);
     hideCropLoupe();
     document.getElementById('modal-cropper').classList.add('hidden');
     state.cropContext = null;
-    onDone(resultUrl, continueScanning);
+    onDone(resultUrl, continueScanning, chosenCorners);
   }
 
   // =========================================================================
@@ -2842,6 +2924,12 @@
   // =========================================================================
   // 12. EKSPOR PDF (AUTO-FIT, A4/F4/LETTER, ORIENTASI, FIT/FILL, MARGIN, PASSWORD, SHARE, PRINT)
   // =========================================================================
+  const PDF_PAPER_FORMATS = {
+    a4: { label: 'A4', w: 210, h: 297 },
+    f4: { label: 'F4 / Folio', w: 215, h: 330 },
+    letter: { label: 'Letter', w: 215.9, h: 279.4 }
+  };
+
   function getCurrentExportConfigFromUI() {
     return {
       paperSize: document.getElementById('export-paper-size')?.value || 'a4',
@@ -2851,13 +2939,131 @@
     };
   }
 
+  function resolvePdfPageMetrics(imgW, imgH, cfg) {
+    const sizeKey = cfg.paperSize || 'a4';
+    const orientPref = cfg.orientation || 'auto';
+    const fitMode = cfg.fitMode || 'contain';
+    const margin = sizeKey === 'autofit' ? 0 : (isNaN(cfg.margin) ? 5 : cfg.margin);
+
+    let pageW, pageH, orientation, paperLabel;
+    if (sizeKey === 'autofit') {
+      const aspect = imgH / Math.max(1, imgW);
+      if (imgW > imgH) {
+        pageW = 297;
+        pageH = Math.max(60, pageW * aspect);
+      } else {
+        pageW = 210;
+        pageH = Math.max(60, pageW * aspect);
+      }
+      orientation = pageW > pageH ? 'l' : 'p';
+      paperLabel = 'Auto / Original';
+    } else {
+      const fmt = PDF_PAPER_FORMATS[sizeKey] || PDF_PAPER_FORMATS.a4;
+      paperLabel = fmt.label;
+      pageW = fmt.w;
+      pageH = fmt.h;
+      if (orientPref === 'landscape') {
+        orientation = 'l';
+      } else if (orientPref === 'portrait') {
+        orientation = 'p';
+      } else {
+        orientation = imgW > imgH ? 'l' : 'p';
+      }
+      if (orientation === 'l') [pageW, pageH] = [pageH, pageW];
+    }
+
+    return { pageW, pageH, orientation, fitMode, margin, sizeKey, paperLabel };
+  }
+
+  async function renderPdfLayoutPreview() {
+    const canvas = document.getElementById('pdf-layout-preview-canvas');
+    const metaEl = document.getElementById('pdf-layout-preview-meta');
+    const doc = getActiveDoc();
+    if (!canvas || !metaEl) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!doc || !doc.pages.length) {
+      metaEl.innerHTML = `<p class="text-slate-400 italic">Tambahkan halaman untuk melihat pratinjau kertas PDF.</p>`;
+      return;
+    }
+
+    const pageObj = doc.pages[state.activePageIndex] || doc.pages[0];
+    const img = await loadImageObj(pageObj.processedDataUrl);
+    const cfg = getCurrentExportConfigFromUI();
+    const m = resolvePdfPageMetrics(img.width, img.height, cfg);
+
+    // Skalakan ukuran kertas ke kanvas pratinjau
+    const maxBoxW = 86, maxBoxH = 104;
+    const pScale = Math.min(maxBoxW / m.pageW, maxBoxH / m.pageH);
+    const pw = Math.max(24, Math.round(m.pageW * pScale));
+    const ph = Math.max(24, Math.round(m.pageH * pScale));
+    canvas.width = pw;
+    canvas.height = ph;
+
+    // Latar kertas putih
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pw, ph);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, pw - 1, ph - 1);
+
+    const padMm = m.margin;
+    const innerW = Math.max(4, (m.pageW - padMm * 2) * pScale);
+    const innerH = Math.max(4, (m.pageH - padMm * 2) * pScale);
+    const innerX = (pw - innerW) / 2;
+    const innerY = (ph - innerH) / 2;
+
+    if (m.fitMode === 'cover' && m.sizeKey !== 'autofit') {
+      const targetRatio = innerW / innerH;
+      const imgRatio = img.width / img.height;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (imgRatio > targetRatio) {
+        sw = img.height * targetRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / targetRatio;
+        sy = (img.height - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, innerX, innerY, innerW, innerH);
+    } else {
+      const ratio = Math.min(innerW / img.width, innerH / img.height);
+      const dw = img.width * ratio;
+      const dh = img.height * ratio;
+      const dx = (pw - dw) / 2;
+      const dy = (ph - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
+
+    const orientText = m.orientation === 'l' ? 'Landscape' : 'Portrait';
+    const fitText = m.fitMode === 'cover' && m.sizeKey !== 'autofit' ? 'Fill Page (Penuh)' : 'Fit to Page (Proporsional)';
+    metaEl.innerHTML = `
+      <p class="font-bold text-emerald-700 dark:text-emerald-400">${m.paperLabel} • ${orientText}</p>
+      <p>Dimensi: ${Math.round(m.pageW)} × ${Math.round(m.pageH)} mm</p>
+      <p>Mode: ${fitText}</p>
+      <p>Margin: ${m.margin} mm (Center-Aligned)</p>
+    `;
+  }
+
   function syncExportSettingsUI() {
     const doc = getActiveDoc();
     const scope = document.getElementById('export-page-scope')?.value || 'all';
     const infoEl = document.getElementById('export-scope-info');
+    const pageSelect = document.getElementById('export-active-page-select');
+
     if (!doc) {
       if (infoEl) infoEl.textContent = 'Belum ada dokumen aktif.';
+      if (pageSelect) pageSelect.innerHTML = '<option value="0">Belum ada halaman</option>';
+      renderPdfLayoutPreview();
       return;
+    }
+
+    state.activePageIndex = Math.max(0, Math.min(state.activePageIndex, Math.max(0, doc.pages.length - 1)));
+    if (pageSelect) {
+      pageSelect.innerHTML = doc.pages.length > 0
+        ? doc.pages.map((_, idx) => `<option value="${idx}" ${idx === state.activePageIndex ? 'selected' : ''}>Halaman #${idx + 1}</option>`).join('')
+        : '<option value="0">0 Halaman</option>';
     }
 
     const activePage = doc.pages[state.activePageIndex];
@@ -2880,6 +3086,7 @@
         ? `Mengatur khusus Halaman #${state.activePageIndex + 1} dari ${doc.pages.length} halaman.`
         : `Pengaturan kertas berlaku untuk semua ${doc.pages.length} halaman PDF.`;
     }
+    renderPdfLayoutPreview();
   }
 
   async function saveExportPaperSettings(forceApplyAll = false) {
@@ -2907,12 +3114,13 @@
     await saveActiveDoc(false);
   }
 
-  // Render gambar beresolusi tinggi dengan mode Fit (Proporsional) atau Fill (Center-Crop Penuh)
+  // Render gambar beresolusi tinggi dengan mode Fit (Proporsional) atau Fill (Center-Crop Penuh) & DPI efisien
   function renderImageForPdfPage(img, targetRatio, fitMode, quality) {
-    const c = document.createElement('canvas');
+    const maxPx = quality <= 0.6 ? 1240 : quality >= 0.9 ? 2400 : 1750;
+    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+
     if (fitMode === 'cover' && targetRatio > 0) {
       const imgRatio = img.width / img.height;
-      let sx = 0, sy = 0, sw = img.width, sh = img.height;
       if (imgRatio > targetRatio) {
         sw = Math.round(img.height * targetRatio);
         sx = Math.round((img.width - sw) / 2);
@@ -2920,14 +3128,23 @@
         sh = Math.round(img.width / targetRatio);
         sy = Math.round((img.height - sh) / 2);
       }
-      c.width = sw;
-      c.height = sh;
-      c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-    } else {
-      c.width = img.width;
-      c.height = img.height;
-      c.getContext('2d').drawImage(img, 0, 0);
     }
+
+    let outW = sw, outH = sh;
+    if (Math.max(outW, outH) > maxPx) {
+      const scale = maxPx / Math.max(outW, outH);
+      outW = Math.round(outW * scale);
+      outH = Math.round(outH * scale);
+    }
+
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, outW);
+    c.height = Math.max(1, outH);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+
     return {
       dataUrl: c.toDataURL('image/jpeg', quality),
       width: c.width,
@@ -2945,52 +3162,18 @@
     const quality = parseFloat(document.getElementById('export-quality').value) || 0.78;
     const password = document.getElementById('export-pdf-password').value.trim();
 
-    const formats = {
-      a4: [210, 297],
-      f4: [215, 330],
-      letter: [215.9, 279.4]
-    };
-
     let pdf = null;
 
     for (let i = 0; i < doc.pages.length; i++) {
       const pageObj = doc.pages[i];
       const img = await loadImageObj(pageObj.processedDataUrl);
 
-      // Gunakan pengaturan halaman masing-masing jika scope = 'current', atau seragam jika 'all'
+      // Gunakan pengaturan per halaman jika scope = 'current', atau seragam jika 'all'
       const cfg = (scope === 'current' && pageObj.pdfConfig) ? pageObj.pdfConfig : uiCfg;
-      const sizeKey = cfg.paperSize || 'a4';
-      const orientPref = cfg.orientation || 'auto';
-      const fitMode = cfg.fitMode || 'contain';
-      const margin = sizeKey === 'autofit' ? 0 : (isNaN(cfg.margin) ? 5 : cfg.margin);
-
-      let pageW, pageH, orientation;
-      if (sizeKey === 'autofit') {
-        // Pemetaan DPI tajam (~150-200 DPI) mengikuti rasio asli hasil crop tanpa margin berlebih
-        const targetWidthMm = 210;
-        const aspect = img.height / img.width;
-        if (img.width > img.height) {
-          pageW = 297;
-          pageH = Math.max(60, pageW * aspect);
-        } else {
-          pageW = targetWidthMm;
-          pageH = Math.max(60, pageW * aspect);
-        }
-        orientation = pageW > pageH ? 'l' : 'p';
-      } else {
-        [pageW, pageH] = formats[sizeKey] || formats.a4;
-        if (orientPref === 'landscape') {
-          orientation = 'l';
-        } else if (orientPref === 'portrait') {
-          orientation = 'p';
-        } else {
-          orientation = img.width > img.height ? 'l' : 'p';
-        }
-        if (orientation === 'l') [pageW, pageH] = [pageH, pageW];
-      }
+      const m = resolvePdfPageMetrics(img.width, img.height, cfg);
 
       if (i === 0) {
-        const opts = { orientation, unit: 'mm', format: [pageW, pageH], compress: true };
+        const opts = { orientation: m.orientation, unit: 'mm', format: [m.pageW, m.pageH], compress: true };
         if (password) {
           opts.encryption = {
             userPassword: password,
@@ -3000,15 +3183,15 @@
         }
         pdf = new window.jspdf.jsPDF(opts);
       } else {
-        pdf.addPage([pageW, pageH], orientation);
+        pdf.addPage([m.pageW, m.pageH], m.orientation);
       }
 
-      const maxW = Math.max(10, pageW - margin * 2);
-      const maxH = Math.max(10, pageH - margin * 2);
-      const rendered = renderImageForPdfPage(img, maxW / maxH, fitMode, quality);
+      const maxW = Math.max(10, m.pageW - m.margin * 2);
+      const maxH = Math.max(10, m.pageH - m.margin * 2);
+      const rendered = renderImageForPdfPage(img, maxW / maxH, m.fitMode, quality);
 
       let drawW, drawH;
-      if (fitMode === 'cover' && sizeKey !== 'autofit') {
+      if (m.fitMode === 'cover' && m.sizeKey !== 'autofit') {
         drawW = maxW;
         drawH = maxH;
       } else {
@@ -3018,8 +3201,8 @@
       }
 
       // Posisi gambar selalu center-aligned di tengah halaman
-      const offsetX = (pageW - drawW) / 2;
-      const offsetY = (pageH - drawH) / 2;
+      const offsetX = (m.pageW - drawW) / 2;
+      const offsetY = (m.pageH - drawH) / 2;
 
       pdf.addImage(rendered.dataUrl, 'JPEG', offsetX, offsetY, drawW, drawH, undefined, 'FAST');
     }
@@ -3387,9 +3570,9 @@
         showToast(`Mengimpor ${files.length} foto${state.autoCropEnabled ? ' + Auto-Crop otomatis' : ''}...`, 'info');
         for (const f of files) {
           const rawUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
-          const normUrl = await normalizeImageDataUrl(rawUrl, 1600, 0.86);
-          const finalUrl = state.autoCropEnabled ? await autoCropAndDewarp(normUrl) : normUrl;
-          await addPageToActiveDoc(finalUrl);
+          const normUrl = await normalizeImageDataUrl(rawUrl, 2000, 0.88);
+          const res = state.autoCropEnabled ? await autoCropAndDewarpDetailed(normUrl) : { warpedUrl: normUrl, corners: null };
+          await addPageToActiveDoc(res.warpedUrl, normUrl, res.corners);
         }
         showToast(`${files.length} foto berhasil ditambahkan ke dokumen!`, 'success');
         if (!state.batchMode) switchView('editor');
@@ -3413,6 +3596,16 @@
     document.getElementById('btn-crop-auto').onclick = () => {
       if (!state.cropContext) return;
       state.cropContext.corners = detectDocumentCorners(state.cropContext.img);
+      updateCropHandlesUI();
+    };
+    document.getElementById('btn-crop-full').onclick = () => {
+      if (!state.cropContext) return;
+      state.cropContext.corners = [
+        { x: 0.01, y: 0.01 },
+        { x: 0.99, y: 0.01 },
+        { x: 0.99, y: 0.99 },
+        { x: 0.01, y: 0.99 }
+      ];
       updateCropHandlesUI();
     };
     document.getElementById('btn-crop-cancel').onclick = () => {
@@ -3445,21 +3638,25 @@
       const doc = getActiveDoc();
       const page = doc?.pages[state.activePageIndex];
       if (!page) return;
-      openPerspectiveCropper(page.originalDataUrl, async (warpedUrl) => {
+      const sourceForCrop = page.rawDataUrl || page.originalDataUrl;
+      openPerspectiveCropper(sourceForCrop, async (warpedUrl, _cont, chosenCorners) => {
         page.originalDataUrl = warpedUrl;
         page.processedDataUrl = warpedUrl;
+        page.cropCorners = chosenCorners || null;
         await reprocessActivePage();
         renderEditorView();
-      }, false);
+      }, false, page.cropCorners || null);
     };
     document.getElementById('btn-auto-crop-page').onclick = async () => {
       const doc = getActiveDoc();
       const page = doc?.pages[state.activePageIndex];
       if (!page) return showToast('Pilih halaman terlebih dahulu.', 'warning');
       showToast('Mendeteksi tepi & meluruskan perspektif...', 'info');
-      const warpedUrl = await autoCropAndDewarp(page.originalDataUrl);
-      page.originalDataUrl = warpedUrl;
-      page.processedDataUrl = warpedUrl;
+      const sourceForCrop = page.rawDataUrl || page.originalDataUrl;
+      const res = await autoCropAndDewarpDetailed(sourceForCrop);
+      page.originalDataUrl = res.warpedUrl;
+      page.processedDataUrl = res.warpedUrl;
+      page.cropCorners = res.corners;
       await reprocessActivePage();
       renderEditorView();
       showToast('Auto-Crop & pelurusan perspektif berhasil!', 'success');
@@ -3563,6 +3760,10 @@
       document.getElementById(id).onchange = () => saveExportPaperSettings(false);
     });
     document.getElementById('export-page-scope').onchange = () => syncExportSettingsUI();
+    document.getElementById('export-active-page-select').onchange = (e) => {
+      state.activePageIndex = Number(e.target.value) || 0;
+      syncExportSettingsUI();
+    };
     document.getElementById('btn-apply-paper-all').onclick = () => saveExportPaperSettings(true);
     document.getElementById('btn-export-pdf').onclick = handleExportPdf;
     document.getElementById('btn-share-pdf').onclick = handleSharePdf;
