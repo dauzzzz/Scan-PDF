@@ -168,7 +168,7 @@
     <span class="hidden sm:inline opacity-80">Ubah IS_PREVIEW = false untuk produksi</span>
   </div>
 
-  <!-- ==================== HALAMAN LOGIN GLASSMORPHISM ==================== -->
+  <!-- ==================== HALAMAN LOGIN GLASSMORPHISM (ADMIN TUNGGAL) ==================== -->
   <section id="auth-screen" class="flex-1 flex items-center justify-center p-4 overflow-y-auto">
     <div class="w-full max-w-md glass-card rounded-3xl p-6 sm:p-8 relative overflow-hidden">
       <div class="absolute -top-20 -right-20 w-44 h-44 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -183,21 +183,18 @@
         <p class="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">oleh alfian tech • Pemindai PDF & AI</p>
       </div>
 
-      <!-- Switch Role Login (Hybrid: Admin vs User/Operator) -->
-      <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-5">
-        <button id="tab-login-user" type="button" class="py-2 text-xs font-bold rounded-lg transition-all bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm">
-          User / Operator
-        </button>
-        <button id="tab-login-admin" type="button" class="py-2 text-xs font-bold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800">
-          Admin (Supabase)
-        </button>
+      <!-- Indikator Akses Admin Tunggal -->
+      <div class="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/60 rounded-xl mb-5">
+        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+        <span class="text-xs font-bold text-emerald-800 dark:text-emerald-300">Masuk Akun Admin (Supabase Auth)</span>
       </div>
 
-      <!-- Form Login -->
+      <!-- Form Login Admin -->
       <form id="login-form" class="space-y-4">
+        <div id="login-error-box" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold"></div>
         <div>
-          <label id="login-id-label" for="login-identifier" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Username / ID</label>
-          <input id="login-identifier" type="text" required autocomplete="username" placeholder="Masukkan username Anda"
+          <label id="login-id-label" for="login-identifier" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Email Admin</label>
+          <input id="login-identifier" type="email" required autocomplete="email" placeholder="admin@domain.com"
             class="w-full px-4 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         <div>
@@ -206,7 +203,7 @@
             class="w-full px-4 py-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         <button id="btn-login-submit" type="submit"
-          class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2">
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 disabled:opacity-60">
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span>Masuk ke Aplikasi</span>
         </button>
@@ -215,14 +212,9 @@
       <!-- Tombol Pintas Preview (HANYA MUNCUL JIKA IS_PREVIEW = true) -->
       <div id="preview-quick-login" class="hidden mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">
         <p class="text-[11px] font-semibold text-center text-amber-600 dark:text-amber-400 mb-2.5 uppercase tracking-wider">Pintasan Uji Coba (Mode Preview)</p>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="btn-quick-admin" type="button" class="py-2 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 text-xs font-bold transition">
-            Masuk Cepat Admin
-          </button>
-          <button id="btn-quick-user" type="button" class="py-2 px-3 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs font-bold transition">
-            Masuk Cepat User
-          </button>
-        </div>
+        <button id="btn-quick-admin" type="button" class="w-full py-2.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 text-xs font-bold transition">
+          Masuk Cepat Admin (Mode Preview)
+        </button>
       </div>
 
       <!-- Tombol Install PWA di Layar Login -->
@@ -269,7 +261,7 @@
             <i data-lucide="sparkles" class="w-4 h-4"></i><span>AI Studio & Ekspor</span>
           </button>
           <button data-view="settings" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
-            <i data-lucide="settings" class="w-4 h-4"></i><span>Pengaturan & Admin</span>
+            <i data-lucide="settings" class="w-4 h-4"></i><span>Pengaturan</span>
           </button>
         </nav>
       </div>
@@ -282,8 +274,8 @@
 
         <div class="flex items-center justify-between px-2">
           <div class="min-w-0">
-            <p id="sidebar-user-name" class="text-xs font-bold truncate">Pengguna</p>
-            <p id="sidebar-user-role" class="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold">USER</p>
+            <p id="sidebar-user-name" class="text-xs font-bold truncate">Administrator</p>
+            <p id="sidebar-user-role" class="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold">ADMINISTRATOR</p>
           </div>
           <div class="flex items-center gap-1">
             <button id="btn-theme-toggle" title="Ganti Tema" class="p-2 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">
@@ -385,8 +377,8 @@
                 Pilih Mode Pemindaian
               </h3>
               <label class="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                <input id="toggle-batch-scan" type="checkbox" class="rounded text-emerald-600 focus:ring-emerald-500" />
-                <span>Mode Batch Scan (Banyak Halaman)</span>
+                <input id="toggle-batch-scan" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500" />
+                <span>Mode Multi-Halaman (Scan Terus Tanpa Batas)</span>
               </label>
             </div>
             <div class="grid grid-cols-3 gap-2">
@@ -482,17 +474,39 @@
 
               <!-- Tombol Impor Galeri & PDF -->
               <div class="flex items-center gap-2">
-                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5">
+                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Bisa pilih banyak foto sekaligus">
                   <i data-lucide="image" class="w-4 h-4 text-emerald-400"></i>
-                  <span>Galeri</span>
+                  <span>Galeri (Multi)</span>
                   <input id="input-import-images" type="file" accept="image/*" multiple class="hidden" />
                 </label>
-                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5">
+                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Bisa pilih banyak file PDF sekaligus">
                   <i data-lucide="file-up" class="w-4 h-4 text-sky-400"></i>
                   <span>Impor PDF</span>
-                  <input id="input-import-pdf" type="file" accept="application/pdf" class="hidden" />
+                  <input id="input-import-pdf" type="file" accept="application/pdf" multiple class="hidden" />
                 </label>
               </div>
+            </div>
+          </div>
+
+          <!-- Antrean / Filmstrip Halaman Scan Aktif (Multi-Halaman Tak Terbatas) -->
+          <div id="scan-filmstrip-panel" class="glass-card rounded-2xl p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <i data-lucide="files" class="w-4 h-4 text-emerald-600"></i>
+                <h4 class="text-xs font-extrabold">Halaman Terkumpul di Dokumen Aktif (<span id="scan-filmstrip-count">0</span> Halaman)</h4>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="btn-scan-new-doc" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition">
+                  + Dokumen Baru
+                </button>
+                <button id="btn-scan-goto-editor" type="button" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition">
+                  <span>Edit & Buat PDF</span>
+                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+            <div id="scan-filmstrip-list" class="flex items-center gap-2.5 overflow-x-auto pb-1 min-h-[76px]">
+              <p class="text-xs text-slate-400 italic">Belum ada halaman. Jepret kamera atau impor banyak foto/PDF untuk menambah halaman tanpa batas.</p>
             </div>
           </div>
         </section>
@@ -778,7 +792,7 @@
           </div>
         </section>
 
-        <!-- ==================== VIEW 5: PENGATURAN, MULTI-API KEY & ADMIN ==================== -->
+        <!-- ==================== VIEW 5: PENGATURAN & MULTI-API KEY ==================== -->
         <section id="view-settings" class="app-view hidden space-y-5 max-w-5xl mx-auto">
           <!-- Konfigurasi Multi-API Key Gemini -->
           <div class="glass-card rounded-2xl p-5 space-y-4">
@@ -819,48 +833,6 @@
               <i data-lucide="download" class="w-4 h-4"></i> Pasang Sekarang
             </button>
           </div>
-
-          <!-- Manajemen Pengguna (Khusus Admin) -->
-          <div id="admin-users-panel" class="hidden glass-card rounded-2xl p-5 space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-sm font-extrabold flex items-center gap-2">
-                  <i data-lucide="users" class="w-4 h-4 text-emerald-600"></i>
-                  Manajemen Akun User / Operator (Admin)
-                </h3>
-                <p class="text-xs text-slate-500 mt-0.5">Kelola akun login User pada tabel Supabase <code class="text-emerald-600">app_users</code>.</p>
-              </div>
-              <button id="btn-refresh-users" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 transition">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-              </button>
-            </div>
-
-            <form id="form-add-user" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
-              <input id="new-user-fullname" type="text" required placeholder="Nama Lengkap"
-                class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
-              <input id="new-user-username" type="text" required placeholder="Username / ID"
-                class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
-              <input id="new-user-password" type="text" required placeholder="Password"
-                class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs" />
-              <button type="submit" class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
-                + Tambah User
-              </button>
-            </form>
-
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="border-b border-slate-200 dark:border-slate-700 text-slate-500">
-                  <tr>
-                    <th class="py-2 pr-3">Nama</th>
-                    <th class="py-2 pr-3">Username</th>
-                    <th class="py-2 pr-3">Status</th>
-                    <th class="py-2 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-users-tbody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-              </table>
-            </div>
-          </div>
         </section>
 
       </main>
@@ -888,15 +860,16 @@
 
   <!-- ==================== MODAL CROP 4 TITIK & PERSPECTIVE WARP ==================== -->
   <div id="modal-cropper" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex flex-col p-4">
-    <div class="flex items-center justify-between text-white mb-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 text-white mb-3">
       <div>
         <h3 class="text-sm font-extrabold">Deteksi Tepi & Pelurusan Perspektif</h3>
         <p class="text-[11px] text-slate-300">Geser 4 titik hijau ke sudut kertas untuk meluruskan dokumen.</p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <button id="btn-crop-auto" class="px-3 py-1.5 rounded-lg bg-slate-800 text-emerald-400 text-xs font-bold">Auto-Detect</button>
         <button id="btn-crop-cancel" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-bold">Batal</button>
-        <button id="btn-crop-apply" class="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">Terapkan Warp</button>
+        <button id="btn-crop-apply-next" class="hidden px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold">Simpan & Scan Lagi</button>
+        <button id="btn-crop-apply" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Terapkan Warp</button>
       </div>
     </div>
     <div id="crop-stage" class="flex-1 flex items-center justify-center relative overflow-hidden">
@@ -973,40 +946,32 @@
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
   // =========================================================================
-  // 1. KONFIGURASI APLIKASI & SAKLAR DEPLOYMENT (IS_PREVIEW)
+  // 1. KONFIGURASI APLIKASI (SAKLAR PREVIEW vs PRODUKSI SUPABASE)
   // =========================================================================
   const IS_PREVIEW = false; // Ubah menjadi false SAAT DEPLOY agar mode preview & data dummy hilang dan terhubung 100% ke Supabase
   const SUPABASE_URL = "https://vtbgzmwnkxcwvntjdezu.supabase.co;
   const SUPABASE_ANON_KEY = "sb_publishable_edmA7f8ApIRTTJcospzWBw_f_-AeSxl";
 
-  // Inisialisasi Supabase Client HANYA saat mode produksi (IS_PREVIEW === false)
-  let supabase = null;
-  if (!IS_PREVIEW) {
-    try {
-      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch (err) {
-      console.error('Gagal menginisialisasi Supabase:', err);
-    }
-  }
+  const supabase = (!IS_PREVIEW && SUPABASE_URL !== 'URL_SUPABASE_ANDA' && SUPABASE_ANON_KEY !== 'ANON_KEY_ANDA')
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
-  // Konfigurasi PDF.js Worker
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 
   // =========================================================================
-  // 2. STATE GLOBAL & DATA DUMMY MINIMALIS (HANYA AKTIF JIKA IS_PREVIEW=true)
+  // 2. STATE GLOBAL
   // =========================================================================
   const state = {
-    currentUser: null, // { username, fullName, role: 'admin'|'user', email? }
-    loginTab: 'user',
+    currentUser: null, // { username, fullName, role: 'admin', email }
     activeView: 'home',
     documents: [], // Disimpan di IndexedDB + metadata di Supabase
     activeDocId: null,
     activePageIndex: 0,
     scanMode: 'document', // 'document' | 'idcard' | 'book'
     idCardFrontDataUrl: null,
-    batchMode: false,
+    batchMode: true, // Default aktif agar bisa menambah halaman scan tak terbatas secara langsung
     batchCount: 0,
     cameraStream: null,
     torchOn: false,
@@ -1016,48 +981,48 @@
     stableCounter: 0,
     apiKeys: [],
     apiKeyIndex: 0,
-    usersList: [],
     deferredPwaPrompt: null,
     cropContext: null, // { img, corners: [{x,y}x4], onDone }
-    activeOverlay: null, // { type, dataUrl, x, y, width, height }
+    activeOverlay: null, // { el, dataUrl }
     signaturePenColor: '#0f172a'
   };
-
-  // Data Dummy Minimalis (Hanya 1-2 baris, HANYA digunakan saat IS_PREVIEW === true)
-  const PREVIEW_DUMMY_USERS = IS_PREVIEW ? [
-    { id: 'prev-u1', username: 'operator1', password: '123', full_name: 'Operator Demo', role: 'user', is_active: true }
-  ] : [];
 
   // =========================================================================
   // 3. IMPLEMENTASI PWA 1 FILE (DYNAMIC PNG ICON + MANIFEST + BLOB SW)
   // =========================================================================
   function generatePwaIconDataUrl(size) {
     const c = document.createElement('canvas');
-    c.width = size;
-    c.height = size;
+    c.width = size; c.height = size;
     const ctx = c.getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, size, size);
     grad.addColorStop(0, '#10b981');
     grad.addColorStop(1, '#047857');
     ctx.fillStyle = grad;
-    const r = size * 0.22;
     ctx.beginPath();
-    ctx.moveTo(r, 0); ctx.lineTo(size - r, 0); ctx.quadraticCurveTo(size, 0, size, r);
-    ctx.lineTo(size, size - r); ctx.quadraticCurveTo(size, size, size - r, size);
-    ctx.lineTo(r, size); ctx.quadraticCurveTo(0, size, 0, size - r);
-    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-    ctx.closePath(); ctx.fill();
+    ctx.roundRect(0, 0, size, size, size * 0.22);
+    ctx.fill();
 
-    // Ikon Dokumen & Garis Scan
+    // Bingkai scan
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = size * 0.06;
-    ctx.lineJoin = 'round';
-    ctx.strokeRect(size * 0.24, size * 0.18, size * 0.52, size * 0.64);
-    ctx.strokeStyle = '#a7f3d0';
+    ctx.lineWidth = Math.max(4, size * 0.055);
+    ctx.lineCap = 'round';
+    const pad = size * 0.24;
+    const len = size * 0.16;
     ctx.beginPath();
-    ctx.moveTo(size * 0.14, size * 0.5);
-    ctx.lineTo(size * 0.86, size * 0.5);
+    ctx.moveTo(pad, pad + len); ctx.lineTo(pad, pad); ctx.lineTo(pad + len, pad);
+    ctx.moveTo(size - pad - len, pad); ctx.lineTo(size - pad, pad); ctx.lineTo(size - pad, pad + len);
+    ctx.moveTo(pad, size - pad - len); ctx.lineTo(pad, size - pad); ctx.lineTo(pad + len, size - pad);
+    ctx.moveTo(size - pad - len, size - pad); ctx.lineTo(size - pad, size - pad); ctx.lineTo(size - pad, size - pad - len);
     ctx.stroke();
+
+    // Garis laser tengah
+    ctx.strokeStyle = '#a7f3d0';
+    ctx.lineWidth = Math.max(3, size * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(pad * 0.85, size / 2);
+    ctx.lineTo(size - pad * 0.85, size / 2);
+    ctx.stroke();
+
     return c.toDataURL('image/png');
   }
 
@@ -1065,20 +1030,11 @@
     try {
       const icon192 = generatePwaIconDataUrl(192);
       const icon512 = generatePwaIconDataUrl(512);
-
-      // Apple Touch Icon
-      const appleLink = document.createElement('link');
-      appleLink.rel = 'apple-touch-icon';
-      appleLink.href = icon192;
-      document.head.appendChild(appleLink);
-
-      // Dynamic Manifest Data URI
       const manifestObj = {
-        name: 'Alfian Scan Pro — Pemindai PDF',
+        name: 'Alfian Scan Pro — Pemindai PDF & AI',
         short_name: 'Alfian Scan',
-        description: 'Aplikasi PWA Pemindai Dokumen PDF Modern oleh alfian tech',
-        start_url: window.location.href,
-        scope: window.location.origin + '/',
+        description: 'Pemindai dokumen PDF offline & AI oleh alfian tech',
+        start_url: location.href,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#ffffff',
@@ -1088,16 +1044,18 @@
           { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       };
-      const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
-      document.getElementById('pwa-manifest-link').setAttribute('href', manifestDataUri);
+      const manifestLink = document.getElementById('pwa-manifest-link');
+      if (manifestLink) {
+        manifestLink.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+      }
 
-      // Tangkap event beforeinstallprompt untuk tombol Install di HP Android
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        state.deferredPwaPrompt = e;
-      });
+      // Apple Touch Icon
+      const appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      appleIcon.href = icon192;
+      document.head.appendChild(appleIcon);
 
-      // Registrasi Service Worker dinamis menggunakan Blob
+      // Service Worker Dinamis via Blob
       if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
         const swCode = `
           const CACHE_NAME = 'alfian-scan-pro-v1';
@@ -1106,20 +1064,19 @@
           self.addEventListener('fetch', (e) => {
             if (e.request.method !== 'GET') return;
             e.respondWith(
-              fetch(e.request).then((res) => {
-                const clone = res.clone();
-                caches.open(CACHE_NAME).then((c) => c.put(e.request, clone)).catch(() => {});
-                return res;
-              }).catch(() => caches.match(e.request))
+              fetch(e.request).catch(() => caches.match(e.request))
             );
           });
         `;
         const swBlob = new Blob([swCode], { type: 'application/javascript' });
         const swUrl = URL.createObjectURL(swBlob);
-        navigator.serviceWorker.register(swUrl).catch(() => {
-          // Abaikan jika browser membatasi scope Blob SW di lingkungan tertentu
-        });
+        navigator.serviceWorker.register(swUrl).catch(() => {});
       }
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        state.deferredPwaPrompt = e;
+      });
     } catch (err) {
       console.warn('PWA init warning:', err);
     }
@@ -1128,16 +1085,16 @@
   async function triggerPwaInstall() {
     if (state.deferredPwaPrompt) {
       state.deferredPwaPrompt.prompt();
-      const { outcome } = await state.deferredPwaPrompt.userChoice;
-      if (outcome === 'accepted') showToast('Aplikasi sedang dipasang ke layar utama HP!', 'success');
+      const res = await state.deferredPwaPrompt.userChoice;
       state.deferredPwaPrompt = null;
+      if (res.outcome === 'accepted') showToast('Alfian Scan Pro sedang dipasang ke layar utama!', 'success');
     } else {
       document.getElementById('modal-pwa-guide').classList.remove('hidden');
     }
   }
 
   // =========================================================================
-  // 4. INDEXEDDB ENGINE (PENYIMPANAN DOKUMEN OFFLINE)
+  // 4. PENYIMPANAN OFFLINE INDEXEDDB
   // =========================================================================
   const IDB_NAME = 'AlfianScanProDB';
   const IDB_STORE = 'documents';
@@ -1145,8 +1102,8 @@
   function openIDB() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(IDB_NAME, 1);
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result;
+      req.onupgradeneeded = () => {
+        const db = req.result;
         if (!db.objectStoreNames.contains(IDB_STORE)) {
           db.createObjectStore(IDB_STORE, { keyPath: 'id' });
         }
@@ -1161,7 +1118,11 @@
     return new Promise((resolve, reject) => {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const req = tx.objectStore(IDB_STORE).getAll();
-      req.onsuccess = () => resolve((req.result || []).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+      req.onsuccess = () => {
+        const list = req.result || [];
+        list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        resolve(list);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -1176,36 +1137,37 @@
     });
   }
 
-  async function idbDeleteDoc(docId) {
+  async function idbDeleteDoc(id) {
     const db = await openIDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).delete(docId);
+      tx.objectStore(IDB_STORE).delete(id);
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
   }
 
   // =========================================================================
-  // 5. UTILITAS UI: TOAST, CONFIRM MODAL, TEMA, FORMATTER
+  // 5. UTILITAS UI (TOAST, CONFIRM MODAL, TEMA, SINKRONISASI CLOUD)
   // =========================================================================
   function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
-    const el = document.createElement('div');
+    if (!container) return;
     const colors = {
       success: 'bg-emerald-600 text-white',
       error: 'bg-rose-600 text-white',
       warning: 'bg-amber-500 text-slate-950',
-      info: 'bg-slate-800 text-white dark:bg-slate-700'
+      info: 'bg-slate-800 text-white'
     };
-    el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs font-bold flex items-center justify-between gap-2 transition-all duration-300 ${colors[type] || colors.info}`;
-    el.innerHTML = `<span>${escapeHtml(message)}</span>`;
+    const el = document.createElement('div');
+    el.className = `pointer-events-auto px-4 py-2.5 rounded-xl shadow-lg text-xs font-bold transition-all duration-300 ${colors[type] || colors.info}`;
+    el.textContent = message;
     container.appendChild(el);
     setTimeout(() => {
       el.style.opacity = '0';
-      el.style.transform = 'translateY(-8px)';
+      el.style.transform = 'translateY(-6px)';
       setTimeout(() => el.remove(), 300);
-    }, 3200);
+    }, 3400);
   }
 
   function showConfirm(title, message) {
@@ -1214,6 +1176,7 @@
       document.getElementById('confirm-title').textContent = title;
       document.getElementById('confirm-message').textContent = message;
       modal.classList.remove('hidden');
+
       const cleanup = (val) => {
         modal.classList.add('hidden');
         document.getElementById('btn-confirm-ok').onclick = null;
@@ -1225,115 +1188,117 @@
     });
   }
 
-  function escapeHtml(str = '') {
-    return String(str).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-  }
-
   function toggleTheme() {
-    const html = document.documentElement;
-    const isDark = html.classList.toggle('dark');
+    const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('alfian_scan_theme', isDark ? 'dark' : 'light');
   }
 
-  function generateAutoDocName(prefix = 'Dokumen') {
-    const d = new Date();
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, (m) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  function generateAutoDocName(prefix = 'Scan') {
+    const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    return `AlfianScan_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}_${prefix}`;
+    return `${prefix}_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  }
+
+  async function syncDocMetadataToSupabase(doc) {
+    if (IS_PREVIEW || !supabase || !navigator.onLine || !doc) return;
+    try {
+      const { error } = await supabase.from('scan_documents').upsert({
+        local_doc_id: doc.id,
+        owner_username: state.currentUser?.username || 'admin',
+        title: doc.title,
+        scan_mode: doc.scanMode || 'document',
+        page_count: doc.pages?.length || 0,
+        paper_size: doc.paperSize || 'a4',
+        ai_summary: doc.aiSummary || '',
+        ocr_text: doc.ocrText || '',
+        updated_at: doc.updatedAt || new Date().toISOString()
+      }, { onConflict: 'local_doc_id' });
+      if (!error) {
+        doc.synced = true;
+        await idbSaveDoc(doc);
+      }
+    } catch (err) {
+      console.warn('Sync Supabase dilewati:', err);
+    }
   }
 
   // =========================================================================
-  // 6. AUTENTIKASI HYBRID (ADMIN VIA SUPABASE AUTH, USER VIA TABEL)
+  // 6. AUTENTIKASI ADMIN TUNGGAL (SUPABASE AUTH)
   // =========================================================================
-  function setLoginTab(tab) {
-    state.loginTab = tab;
-    const btnUser = document.getElementById('tab-login-user');
-    const btnAdmin = document.getElementById('tab-login-admin');
-    const label = document.getElementById('login-id-label');
-    const input = document.getElementById('login-identifier');
-    const activeCls = 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm';
-    const inactiveCls = 'text-slate-500 dark:text-slate-400';
-
-    if (tab === 'admin') {
-      btnAdmin.className = `py-2 text-xs font-bold rounded-lg transition-all ${activeCls}`;
-      btnUser.className = `py-2 text-xs font-bold rounded-lg transition-all ${inactiveCls}`;
-      label.textContent = 'Email Admin (Supabase Auth)';
-      input.type = 'email';
-      input.placeholder = 'admin@domain.com';
+  function showLoginError(msg) {
+    const box = document.getElementById('login-error-box');
+    if (!box) return;
+    if (!msg) {
+      box.classList.add('hidden');
+      box.textContent = '';
     } else {
-      btnUser.className = `py-2 text-xs font-bold rounded-lg transition-all ${activeCls}`;
-      btnAdmin.className = `py-2 text-xs font-bold rounded-lg transition-all ${inactiveCls}`;
-      label.textContent = 'Username / ID Operator';
-      input.type = 'text';
-      input.placeholder = 'Masukkan username Anda';
+      box.textContent = msg;
+      box.classList.remove('hidden');
     }
   }
 
   async function handleLoginSubmit(e) {
     e.preventDefault();
-    const identifier = document.getElementById('login-identifier').value.trim();
+    showLoginError('');
+    const email = document.getElementById('login-identifier').value.trim();
     const password = document.getElementById('login-password').value;
-    if (!identifier || !password) return showToast('Mohon lengkapi kredensial login.', 'warning');
+    if (!email || !password) {
+      showLoginError('Mohon masukkan email dan password Admin.');
+      return showToast('Mohon lengkapi email dan password.', 'warning');
+    }
 
     if (IS_PREVIEW) {
-      // Mode Preview: Login lokal tanpa memanggil Supabase
-      if (state.loginTab === 'admin') {
-        enterApp({ username: identifier, fullName: 'Admin Preview', role: 'admin', email: identifier });
-      } else {
-        const found = PREVIEW_DUMMY_USERS.find((u) => u.username === identifier && u.password === password);
-        enterApp({ username: found ? found.username : identifier, fullName: found ? found.full_name : identifier, role: 'user' });
-      }
+      enterApp({ username: email, fullName: 'Admin Preview', role: 'admin', email });
       return;
     }
 
-    // Mode Produksi (IS_PREVIEW === false): 100% Terhubung ke Supabase
-    if (!supabase) return showToast('Konfigurasi SUPABASE_URL & SUPABASE_ANON_KEY belum valid.', 'error');
+    if (!supabase || SUPABASE_URL === 'URL_SUPABASE_ANDA' || SUPABASE_ANON_KEY === 'ANON_KEY_ANDA') {
+      const msg = 'SUPABASE_URL atau SUPABASE_ANON_KEY belum diisi dengan kredensial proyek Supabase Anda.';
+      showLoginError(msg);
+      return showToast(msg, 'error');
+    }
+
     const btn = document.getElementById('btn-login-submit');
     btn.disabled = true;
 
     try {
-      if (state.loginTab === 'admin') {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: identifier, password });
-        if (error) throw error;
-        enterApp({
-          username: data.user.email,
-          fullName: data.user.user_metadata?.full_name || 'Administrator',
-          role: 'admin',
-          email: data.user.email
-        });
-      } else {
-        const { data, error } = await supabase
-          .from('app_users')
-          .select('*')
-          .eq('username', identifier)
-          .eq('password', password)
-          .eq('is_active', true)
-          .maybeSingle();
-        if (error) throw error;
-        if (!data) throw new Error('Username atau password tidak cocok, atau akun nonaktif.');
-        localStorage.setItem('alfian_scan_user_session', JSON.stringify(data));
-        enterApp({ username: data.username, fullName: data.full_name, role: data.role || 'user' });
-      }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (!data?.user) throw new Error('Data pengguna tidak ditemukan dari Supabase Auth.');
+
+      enterApp({
+        username: data.user.email,
+        fullName: data.user.user_metadata?.full_name || 'Administrator',
+        role: 'admin',
+        email: data.user.email
+      });
     } catch (err) {
-      showToast(err.message || 'Gagal login ke Supabase.', 'error');
+      let errMsg = err?.message || 'Gagal login ke Supabase.';
+      if (/Invalid login credentials/i.test(errMsg)) {
+        errMsg = 'Email atau password salah. Pastikan akun Admin sudah dibuat di Supabase Authentication → Users.';
+      } else if (/Email not confirmed/i.test(errMsg)) {
+        errMsg = 'Email belum dikonfirmasi. Aktifkan "Auto Confirm User" saat membuat akun di Dashboard Supabase.';
+      }
+      showLoginError(errMsg);
+      showToast(errMsg, 'error');
     } finally {
       btn.disabled = false;
     }
   }
 
   async function enterApp(user) {
+    showLoginError('');
     state.currentUser = user;
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app-shell').classList.remove('hidden');
     document.getElementById('sidebar-user-name').textContent = user.fullName || user.username;
-    document.getElementById('sidebar-user-role').textContent = user.role === 'admin' ? 'ADMINISTRATOR' : 'OPERATOR / USER';
-
-    const adminPanel = document.getElementById('admin-users-panel');
-    if (user.role === 'admin') {
-      adminPanel.classList.remove('hidden');
-      loadAdminUsers();
-    } else {
-      adminPanel.classList.add('hidden');
-    }
+    document.getElementById('sidebar-user-role').textContent = 'ADMINISTRATOR';
 
     await loadSettingsAndKeys();
     await loadDocuments();
@@ -1343,10 +1308,9 @@
 
   async function handleLogout() {
     stopCamera();
-    if (!IS_PREVIEW && supabase && state.currentUser?.role === 'admin') {
+    if (!IS_PREVIEW && supabase) {
       await supabase.auth.signOut().catch(() => {});
     }
-    localStorage.removeItem('alfian_scan_user_session');
     state.currentUser = null;
     document.getElementById('app-shell').classList.add('hidden');
     document.getElementById('auth-screen').classList.remove('hidden');
@@ -1368,7 +1332,7 @@
       scan: 'Pindai & Impor Dokumen',
       editor: 'Editor Gambar & Halaman',
       ai: 'AI Studio & Ekspor PDF',
-      settings: 'Pengaturan & Admin'
+      settings: 'Pengaturan'
     };
     document.getElementById('header-view-title').textContent = titles[viewName] || 'Alfian Scan Pro';
 
@@ -1381,6 +1345,7 @@
       btn.classList.toggle('dark:text-slate-300', !active);
     });
 
+    if (viewName === 'scan') renderScanFilmstrip();
     if (viewName === 'editor') renderEditorView();
     if (viewName === 'home') renderDocumentsGrid();
     updateHeaderActiveDoc();
@@ -1401,7 +1366,7 @@
     try {
       state.documents = await idbGetAllDocs();
 
-      // Mode Preview: buat 1 contoh dokumen minimalist jika benar-benar kosong
+      // Mode Preview: buat 1 contoh dokumen minimalis jika benar-benar kosong
       if (IS_PREVIEW && state.documents.length === 0) {
         const sampleCanvas = document.createElement('canvas');
         sampleCanvas.width = 600; sampleCanvas.height = 840;
@@ -1460,6 +1425,7 @@
     await idbSaveDoc(newDoc);
     syncDocMetadataToSupabase(newDoc);
     renderDocumentsGrid();
+    renderScanFilmstrip();
     updateHeaderActiveDoc();
     return newDoc;
   }
@@ -1468,38 +1434,21 @@
     const doc = getActiveDoc();
     if (!doc) return;
     doc.updatedAt = new Date().toISOString();
-    await idbSaveDoc(doc);
+    try {
+      await idbSaveDoc(doc);
+    } catch (err) {
+      showToast('Penyimpanan perangkat penuh atau gagal menyimpan ke IndexedDB.', 'error');
+      return;
+    }
     if (syncCloud) syncDocMetadataToSupabase(doc);
     renderDocumentsGrid();
+    renderScanFilmstrip();
     updateHeaderActiveDoc();
-  }
-
-  async function syncDocMetadataToSupabase(doc) {
-    if (IS_PREVIEW || !supabase || !state.currentUser) return;
-    try {
-      const payload = {
-        local_doc_id: doc.id,
-        owner_username: state.currentUser.username,
-        title: doc.title,
-        scan_mode: doc.scanMode || 'document',
-        page_count: doc.pages.length,
-        paper_size: doc.paperSize || 'a4',
-        ai_summary: doc.aiSummary || '',
-        ocr_text: (doc.ocrText || '').slice(0, 10000),
-        updated_at: new Date().toISOString()
-      };
-      const { error } = await supabase.from('scan_documents').upsert(payload, { onConflict: 'local_doc_id' });
-      if (!error) {
-        doc.synced = true;
-        await idbSaveDoc(doc);
-      }
-    } catch (err) {
-      console.warn('Sinkronisasi metadata Supabase tertunda (offline):', err);
-    }
   }
 
   function renderDocumentsGrid() {
     const grid = document.getElementById('documents-grid');
+    if (!grid) return;
     const q = (document.getElementById('search-docs-input')?.value || '').toLowerCase();
     const filtered = state.documents.filter((d) =>
       d.title.toLowerCase().includes(q) || (d.ocrText || '').toLowerCase().includes(q)
@@ -1578,7 +1527,7 @@
   }
 
   // =========================================================================
-  // 8. KAMERA (TORCH, AUTO-CAPTURE, BATCH) + IMPOR GALERI & PDF
+  // 8. KAMERA (TORCH, AUTO-CAPTURE, BATCH TAK TERBATAS) + IMPOR GALERI & PDF
   // =========================================================================
   function setScanMode(mode) {
     state.scanMode = mode;
@@ -1596,6 +1545,49 @@
     document.getElementById('guide-box-doc').classList.toggle('hidden', mode !== 'document');
     document.getElementById('guide-line-book').classList.toggle('hidden', mode !== 'book');
     document.getElementById('guide-box-idcard').classList.toggle('hidden', mode !== 'idcard');
+  }
+
+  function renderScanFilmstrip() {
+    const listEl = document.getElementById('scan-filmstrip-list');
+    const countEl = document.getElementById('scan-filmstrip-count');
+    if (!listEl || !countEl) return;
+
+    const doc = getActiveDoc();
+    const pages = doc?.pages || [];
+    countEl.textContent = pages.length;
+
+    if (pages.length === 0) {
+      listEl.innerHTML = `<p class="text-xs text-slate-400 italic">Belum ada halaman. Jepret kamera atau impor banyak foto/PDF untuk menambah halaman tanpa batas.</p>`;
+      return;
+    }
+
+    listEl.innerHTML = pages.map((pg, idx) => `
+      <div class="relative shrink-0 w-16 h-20 rounded-xl overflow-hidden border-2 ${idx === state.activePageIndex ? 'border-emerald-500' : 'border-slate-200 dark:border-slate-700'} bg-slate-100 dark:bg-slate-800 group">
+        <img src="${pg.processedDataUrl}" class="w-full h-full object-cover cursor-pointer" data-film-open="${idx}" alt="Hal ${idx + 1}" />
+        <span class="absolute top-0.5 left-0.5 px-1 rounded bg-black/70 text-white text-[9px] font-bold">${idx + 1}</span>
+        <button type="button" data-film-del="${idx}" class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center opacity-90 hover:opacity-100" title="Hapus halaman">&times;</button>
+      </div>
+    `).join('');
+
+    listEl.scrollLeft = listEl.scrollWidth;
+
+    listEl.querySelectorAll('[data-film-open]').forEach((img) => {
+      img.addEventListener('click', () => {
+        state.activePageIndex = Number(img.dataset.filmOpen);
+        switchView('editor');
+      });
+    });
+
+    listEl.querySelectorAll('[data-film-del]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const idx = Number(btn.dataset.filmDel);
+        if (!doc || !doc.pages[idx]) return;
+        doc.pages.splice(idx, 1);
+        state.activePageIndex = Math.max(0, Math.min(state.activePageIndex, doc.pages.length - 1));
+        await saveActiveDoc();
+        showToast('Halaman dihapus dari antrean.', 'info');
+      });
+    });
   }
 
   async function startCamera() {
@@ -1619,7 +1611,6 @@
       document.getElementById('btn-capture-photo').disabled = false;
       document.getElementById('btn-stop-camera').classList.remove('hidden');
 
-      // Cek dukungan Flash / Torch
       const track = stream.getVideoTracks()[0];
       const caps = track.getCapabilities ? track.getCapabilities() : {};
       document.getElementById('btn-toggle-torch').disabled = !caps.torch;
@@ -1636,7 +1627,7 @@
       state.autoCaptureTimer = null;
     }
     state.autoCaptureEnabled = false;
-    document.getElementById('auto-capture-status').classList.add('hidden');
+    document.getElementById('auto-capture-status')?.classList.add('hidden');
     if (state.cameraStream) {
       state.cameraStream.getTracks().forEach((t) => t.stop());
       state.cameraStream = null;
@@ -1649,8 +1640,10 @@
     }
     document.getElementById('camera-placeholder')?.classList.remove('hidden');
     document.getElementById('camera-overlay-guide')?.classList.add('hidden');
-    document.getElementById('btn-capture-photo').disabled = true;
-    document.getElementById('btn-toggle-torch').disabled = true;
+    const capBtn = document.getElementById('btn-capture-photo');
+    if (capBtn) capBtn.disabled = true;
+    const torchBtn = document.getElementById('btn-toggle-torch');
+    if (torchBtn) torchBtn.disabled = true;
     document.getElementById('btn-stop-camera')?.classList.add('hidden');
   }
 
@@ -1712,6 +1705,32 @@
     }
   }
 
+  function loadImageObj(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  // Normalisasi resolusi gambar agar scan tak terbatas tetap ringan & tajam
+  async function normalizeImageDataUrl(dataUrl, maxDim = 1600, quality = 0.86) {
+    const img = await loadImageObj(dataUrl);
+    let w = img.width;
+    let h = img.height;
+    if (Math.max(w, h) > maxDim) {
+      const ratio = maxDim / Math.max(w, h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', quality);
+  }
+
   function captureFromCamera() {
     const video = document.getElementById('camera-video');
     if (!video || !video.videoWidth) return;
@@ -1719,11 +1738,12 @@
     c.width = video.videoWidth;
     c.height = video.videoHeight;
     c.getContext('2d').drawImage(video, 0, 0);
-    processCapturedImage(c.toDataURL('image/jpeg', 0.92));
+    processCapturedImage(c.toDataURL('image/jpeg', 0.9));
   }
 
-  async function processCapturedImage(dataUrl) {
+  async function processCapturedImage(rawDataUrl) {
     if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
+    const dataUrl = await normalizeImageDataUrl(rawDataUrl, 1600, 0.86);
 
     // MODE ID CARD / KTP (Depan + Belakang -> 1 Halaman A4)
     if (state.scanMode === 'idcard') {
@@ -1756,15 +1776,21 @@
     // MODE DOKUMEN STANDAR
     if (state.batchMode) {
       await addPageToActiveDoc(dataUrl);
-      state.batchCount++;
-      document.getElementById('batch-count-badge').textContent = state.batchCount;
+      const total = getActiveDoc()?.pages.length || 0;
+      state.batchCount = total;
+      document.getElementById('batch-count-badge').textContent = total;
       document.getElementById('btn-finish-batch').classList.remove('hidden');
-      showToast(`Halaman #${state.batchCount} ditambahkan ke batch.`, 'success');
+      showToast(`Halaman #${total} ditambahkan! Lanjut scan halaman berikutnya atau klik Selesai.`, 'success');
     } else {
-      openPerspectiveCropper(dataUrl, async (warpedUrl) => {
+      openPerspectiveCropper(dataUrl, async (warpedUrl, continueScanning) => {
         await addPageToActiveDoc(warpedUrl);
-        switchView('editor');
-      });
+        if (continueScanning) {
+          const total = getActiveDoc()?.pages.length || 0;
+          showToast(`Halaman #${total} disimpan! Silakan scan halaman berikutnya.`, 'success');
+        } else {
+          switchView('editor');
+        }
+      }, true);
     }
   }
 
@@ -1785,15 +1811,6 @@
     await saveActiveDoc();
   }
 
-  function loadImageObj(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
-  }
-
   // Gabung ID Card Depan + Belakang ke A4 Proporsional (1240 x 1754 px @ 150 DPI)
   async function combineIdCardToA4(frontUrl, backUrl) {
     const [imgF, imgB] = await Promise.all([loadImageObj(frontUrl), loadImageObj(backUrl)]);
@@ -1804,48 +1821,62 @@
     ctx.fillRect(0, 0, c.width, c.height);
 
     const cardW = 760;
-    const cardH = Math.round(cardW / 1.586); // Rasio standar ISO/IEC 7810 ID-1 (KTP)
+    const cardH = Math.round(cardW / 1.586);
     const x = (c.width - cardW) / 2;
     ctx.drawImage(imgF, x, 240, cardW, cardH);
     ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.strokeRect(x, 240, cardW, cardH);
 
     ctx.drawImage(imgB, x, 240 + cardH + 140, cardW, cardH);
     ctx.strokeRect(x, 240 + cardH + 140, cardW, cardH);
-    return c.toDataURL('image/jpeg', 0.92);
+    return c.toDataURL('image/jpeg', 0.9);
   }
 
   // Belah 2 Halaman Buku (Book Dewarp Split)
   async function splitBookPages(dataUrl) {
     const img = await loadImageObj(dataUrl);
     const halfW = Math.floor(img.width / 2);
-    const makeHalf = (sx) => {
-      const c = document.createElement('canvas');
-      c.width = halfW; c.height = img.height;
-      c.getContext('2d').drawImage(img, sx, 0, halfW, img.height, 0, 0, halfW, img.height);
-      return c.toDataURL('image/jpeg', 0.92);
-    };
-    return [makeHalf(0), makeHalf(halfW)];
+
+    const cL = document.createElement('canvas');
+    cL.width = halfW; cL.height = img.height;
+    cL.getContext('2d').drawImage(img, 0, 0, halfW, img.height, 0, 0, halfW, img.height);
+
+    const cR = document.createElement('canvas');
+    cR.width = img.width - halfW; cR.height = img.height;
+    cR.getContext('2d').drawImage(img, halfW, 0, img.width - halfW, img.height, 0, 0, img.width - halfW, img.height);
+
+    return [cL.toDataURL('image/jpeg', 0.88), cR.toDataURL('image/jpeg', 0.88)];
   }
 
-  // Impor PDF yang sudah ada untuk diedit ulang (via PDF.js)
-  async function handleImportPdf(file) {
+  // Impor 1 atau banyak file PDF sekaligus untuk digabung & diedit ulang (via PDF.js)
+  async function handleImportPdfFiles(files) {
     if (!window.pdfjsLib) return showToast('Pustaka PDF.js belum siap.', 'error');
-    showToast('Membaca halaman PDF...', 'info');
-    try {
-      const arrayBuf = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuf }).promise;
-      if (!getActiveDoc()) await createNewDocument(file.name.replace(/\.pdf$/i, ''), 'document');
+    const fileList = Array.from(files || []);
+    if (fileList.length === 0) return;
 
-      for (let p = 1; p <= pdf.numPages; p++) {
-        const page = await pdf.getPage(p);
-        const viewport = page.getViewport({ scale: 1.6 });
-        const c = document.createElement('canvas');
-        c.width = viewport.width; c.height = viewport.height;
-        await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
-        await addPageToActiveDoc(c.toDataURL('image/jpeg', 0.9));
+    showToast(`Membaca ${fileList.length} file PDF...`, 'info');
+    let totalImportedPages = 0;
+    try {
+      if (!getActiveDoc()) {
+        const baseName = fileList[0].name.replace(/\.pdf$/i, '');
+        await createNewDocument(fileList.length > 1 ? `${baseName}_Gabungan` : baseName, 'document');
       }
-      showToast(`Berhasil mengimpor ${pdf.numPages} halaman PDF!`, 'success');
-      switchView('editor');
+
+      for (const file of fileList) {
+        const arrayBuf = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuf }).promise;
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const c = document.createElement('canvas');
+          c.width = viewport.width; c.height = viewport.height;
+          await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
+          const normalized = await normalizeImageDataUrl(c.toDataURL('image/jpeg', 0.88), 1600, 0.86);
+          await addPageToActiveDoc(normalized);
+          totalImportedPages++;
+        }
+      }
+      showToast(`Berhasil mengimpor ${totalImportedPages} halaman dari ${fileList.length} file PDF!`, 'success');
+      if (!state.batchMode) switchView('editor');
     } catch (err) {
       showToast('Gagal mengimpor PDF: ' + err.message, 'error');
     }
@@ -1855,7 +1886,6 @@
   // 9. DETEKSI TEPI OTOMATIS & PELURUSAN PERSPEKTIF (HOMOGRAPHY CANVAS)
   // =========================================================================
   function detectDocumentCorners(img) {
-    // Heuristik deteksi tepi kertas berbasis kontras luminansi pada kanvas kecil
     const sw = 160;
     const sh = Math.round((img.height / img.width) * sw);
     const c = document.createElement('canvas');
@@ -1870,9 +1900,9 @@
 
     for (let y = 4; y < sh - 4; y++) {
       for (let x = 4; x < sw - 4; x++) {
-        const i = (y * sw + x) * 4;
-        const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (lum > 145) {
+        const idx = (y * sw + x) * 4;
+        const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+        if (lum > 155) {
           brightPixels++;
           if (x < foundMinX) foundMinX = x;
           if (x > foundMaxX) foundMaxX = x;
@@ -1894,7 +1924,7 @@
     ];
   }
 
-  async function openPerspectiveCropper(dataUrl, onDone) {
+  async function openPerspectiveCropper(dataUrl, onDone, showScanNext = false) {
     const img = await loadImageObj(dataUrl);
     const modal = document.getElementById('modal-cropper');
     const canvas = document.getElementById('crop-canvas');
@@ -1908,8 +1938,9 @@
 
     const corners = detectDocumentCorners(img);
     state.cropContext = { img, corners, onDone };
+    document.getElementById('btn-crop-apply-next').classList.toggle('hidden', !showScanNext);
     modal.classList.remove('hidden');
-    updateCropHandlesUI();
+    requestAnimationFrame(() => updateCropHandlesUI());
   }
 
   function updateCropHandlesUI() {
@@ -1985,7 +2016,7 @@
     return [...x, 1];
   }
 
-  function applyPerspectiveWarp() {
+  function applyPerspectiveWarp(continueScanning = false) {
     if (!state.cropContext) return;
     const { img, corners, onDone } = state.cropContext;
     const srcPts = corners.map((p) => ({ x: p.x * img.width, y: p.y * img.height }));
@@ -2039,42 +2070,39 @@
     }
     dctx.putImageData(dstData, 0, 0);
     document.getElementById('modal-cropper').classList.add('hidden');
-    const resultUrl = dstCanvas.toDataURL('image/jpeg', 0.92);
+    const resultUrl = dstCanvas.toDataURL('image/jpeg', 0.88);
     state.cropContext = null;
-    onDone(resultUrl);
+    onDone(resultUrl, continueScanning);
   }
 
   // =========================================================================
-  // 10. EDITOR GAMBAR (FILTER, BRIGHTNESS, CONTRAST, SHARPNESS, ROTATE)
+  // 10. EDITOR GAMBAR (FILTER, SLIDERS, ROTATE, MANAJEMEN HALAMAN DRAG-DROP)
   // =========================================================================
-  function renderEditorView() {
+  async function renderEditorView() {
     const doc = getActiveDoc();
+    const titleInp = document.getElementById('editor-doc-title');
     const emptyEl = document.getElementById('editor-empty-state');
     const wrapEl = document.getElementById('editor-canvas-wrapper');
-    document.getElementById('editor-doc-title').value = doc ? doc.title : '';
+    const indicator = document.getElementById('editor-page-indicator');
 
     if (!doc || doc.pages.length === 0) {
+      titleInp.value = doc ? doc.title : '';
+      indicator.textContent = 'Halaman 0 / 0';
       emptyEl.classList.remove('hidden');
       wrapEl.classList.add('hidden');
-      document.getElementById('editor-page-indicator').textContent = 'Halaman 0 / 0';
-      document.getElementById('pages-grid').innerHTML = '';
+      document.getElementById('pages-grid').innerHTML = `<p class="col-span-full text-xs text-slate-400 italic">Belum ada halaman. Klik "Tambah Halaman" untuk memindai.</p>`;
       return;
     }
 
-    if (state.activePageIndex >= doc.pages.length) state.activePageIndex = doc.pages.length - 1;
+    titleInp.value = doc.title;
+    state.activePageIndex = Math.max(0, Math.min(state.activePageIndex, doc.pages.length - 1));
     const page = doc.pages[state.activePageIndex];
+    indicator.textContent = `Halaman ${state.activePageIndex + 1} / ${doc.pages.length}`;
+
     emptyEl.classList.add('hidden');
     wrapEl.classList.remove('hidden');
-    document.getElementById('editor-page-indicator').textContent = `Halaman ${state.activePageIndex + 1} / ${doc.pages.length}`;
 
-    // Sinkronkan kontrol UI
-    document.getElementById('slider-brightness').value = page.brightness || 0;
-    document.getElementById('val-brightness').textContent = page.brightness || 0;
-    document.getElementById('slider-contrast').value = page.contrast || 0;
-    document.getElementById('val-contrast').textContent = page.contrast || 0;
-    document.getElementById('slider-sharpness').value = page.sharpness || 0;
-    document.getElementById('val-sharpness').textContent = page.sharpness || 0;
-
+    // Sinkronkan tombol filter & slider
     document.querySelectorAll('.filter-btn').forEach((btn) => {
       const active = btn.dataset.filter === (page.filter || 'original');
       btn.classList.toggle('bg-emerald-600', active);
@@ -2084,134 +2112,36 @@
       btn.classList.toggle('dark:border-slate-700', !active);
     });
 
-    drawPageToPreviewCanvas(page);
-    renderPagesGrid(doc);
-  }
+    document.getElementById('slider-brightness').value = page.brightness || 0;
+    document.getElementById('val-brightness').textContent = page.brightness || 0;
+    document.getElementById('slider-contrast').value = page.contrast || 0;
+    document.getElementById('val-contrast').textContent = page.contrast || 0;
+    document.getElementById('slider-sharpness').value = page.sharpness || 0;
+    document.getElementById('val-sharpness').textContent = page.sharpness || 0;
 
-  async function drawPageToPreviewCanvas(page) {
+    // Gambar pratinjau halaman aktif
     const img = await loadImageObj(page.processedDataUrl);
     const canvas = document.getElementById('editor-preview-canvas');
     canvas.width = img.width;
     canvas.height = img.height;
     canvas.getContext('2d').drawImage(img, 0, 0);
-  }
 
-  async function reprocessActivePage() {
-    const doc = getActiveDoc();
-    if (!doc || !doc.pages[state.activePageIndex]) return;
-    const page = doc.pages[state.activePageIndex];
-    const img = await loadImageObj(page.originalDataUrl);
-
-    const rot = (page.rotation || 0) % 360;
-    const swap = rot === 90 || rot === 270;
-    const c = document.createElement('canvas');
-    c.width = swap ? img.height : img.width;
-    c.height = swap ? img.width : img.height;
-    const ctx = c.getContext('2d');
-
-    ctx.save();
-    ctx.translate(c.width / 2, c.height / 2);
-    ctx.rotate((rot * Math.PI) / 180);
-    ctx.drawImage(img, -img.width / 2, -img.height / 2);
-    ctx.restore();
-
-    const imgData = ctx.getImageData(0, 0, c.width, c.height);
-    const d = imgData.data;
-    const filter = page.filter || 'original';
-    const bright = (page.brightness || 0) * 1.4;
-    const contVal = page.contrast || 0;
-    const contFactor = (259 * (contVal + 255)) / (255 * (259 - contVal));
-
-    // Adaptive Shadow Removal (Hapus Bayangan berbasis rata-rata lokal)
-    let bgLuma = null;
-    if (filter === 'shadow') {
-      const small = document.createElement('canvas');
-      small.width = Math.max(16, Math.round(c.width / 24));
-      small.height = Math.max(16, Math.round(c.height / 24));
-      const sctx = small.getContext('2d');
-      sctx.drawImage(c, 0, 0, small.width, small.height);
-      const up = document.createElement('canvas');
-      up.width = c.width; up.height = c.height;
-      const uctx = up.getContext('2d');
-      uctx.drawImage(small, 0, 0, c.width, c.height);
-      bgLuma = uctx.getImageData(0, 0, c.width, c.height).data;
-    }
-
-    for (let i = 0; i < d.length; i += 4) {
-      let r = d[i], g = d[i + 1], b = d[i + 2];
-
-      if (filter === 'magic') {
-        // Memutihkan latar kertas & mempertajam warna tinta
-        r = Math.min(255, (r - 128) * 1.38 + 146);
-        g = Math.min(255, (g - 128) * 1.38 + 146);
-        b = Math.min(255, (b - 128) * 1.38 + 146);
-      } else if (filter === 'grayscale') {
-        const y = 0.299 * r + 0.587 * g + 0.114 * b;
-        r = g = b = y;
-      } else if (filter === 'bw') {
-        const y = 0.299 * r + 0.587 * g + 0.114 * b;
-        const v = y > 135 ? 255 : 15;
-        r = g = b = v;
-      } else if (filter === 'shadow' && bgLuma) {
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        const bg = 0.299 * bgLuma[i] + 0.587 * bgLuma[i + 1] + 0.114 * bgLuma[i + 2];
-        const ratio = (lum / Math.max(20, bg)) * 245;
-        const clean = ratio > 205 ? 255 : Math.max(0, Math.min(255, (ratio - 128) * 1.5 + 128));
-        r = g = b = clean;
-      }
-
-      // Brightness & Contrast manual
-      r = contFactor * (r + bright - 128) + 128;
-      g = contFactor * (g + bright - 128) + 128;
-      b = contFactor * (b + bright - 128) + 128;
-
-      d[i] = Math.max(0, Math.min(255, r));
-      d[i + 1] = Math.max(0, Math.min(255, g));
-      d[i + 2] = Math.max(0, Math.min(255, b));
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-
-    // Sharpness (Unsharp Mask ringan via konvolusi 3x3)
-    if ((page.sharpness || 0) > 0) {
-      applySharpen(ctx, c.width, c.height, page.sharpness / 100);
-    }
-
-    page.processedDataUrl = c.toDataURL('image/jpeg', 0.9);
-    await saveActiveDoc(false);
-    drawPageToPreviewCanvas(page);
     renderPagesGrid(doc);
-  }
-
-  function applySharpen(ctx, w, h, amount) {
-    const src = ctx.getImageData(0, 0, w, h);
-    const out = ctx.createImageData(w, h);
-    const s = src.data, o = out.data;
-    const k = amount * 0.8;
-    for (let y = 1; y < h - 1; y++) {
-      for (let x = 1; x < w - 1; x++) {
-        const i = (y * w + x) * 4;
-        for (let c = 0; c < 3; c++) {
-          const val = s[i + c] * (1 + 4 * k) - k * (s[i - 4 + c] + s[i + 4 + c] + s[i - w * 4 + c] + s[i + w * 4 + c]);
-          o[i + c] = Math.max(0, Math.min(255, val));
-        }
-        o[i + 3] = 255;
-      }
-    }
-    ctx.putImageData(out, 0, 0);
   }
 
   function renderPagesGrid(doc) {
     const grid = document.getElementById('pages-grid');
     grid.innerHTML = doc.pages.map((pg, idx) => `
-      <div draggable="true" data-page-idx="${idx}" class="page-thumb-card relative rounded-xl overflow-hidden border-2 cursor-pointer transition ${idx === state.activePageIndex ? 'border-emerald-500 ring-2 ring-emerald-400/40' : 'border-slate-200 dark:border-slate-700'}">
-        <img src="${pg.processedDataUrl}" class="w-full h-24 object-cover" />
-        <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/65 text-white text-[10px] font-bold">${idx + 1}</div>
-        <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-1">
-          <button data-move-up="${idx}" class="p-0.5 hover:text-emerald-600 disabled:opacity-30" ${idx === 0 ? 'disabled' : ''} title="Pindah Kiri/Naik"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
-          <button data-move-down="${idx}" class="p-0.5 hover:text-emerald-600 disabled:opacity-30" ${idx === doc.pages.length - 1 ? 'disabled' : ''} title="Pindah Kanan/Turun"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+      <div draggable="true" data-page-idx="${idx}"
+        class="page-thumb-card relative rounded-xl overflow-hidden border-2 transition cursor-pointer bg-slate-100 dark:bg-slate-800 ${idx === state.activePageIndex ? 'border-emerald-500 ring-2 ring-emerald-500/30' : 'border-slate-200 dark:border-slate-700'}">
+        <img src="${pg.processedDataUrl}" class="w-full h-24 object-cover" alt="Hal ${idx + 1}" />
+        <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">${idx + 1}</span>
+        <div class="flex items-center justify-between bg-white/90 dark:bg-slate-900/90 px-1 py-0.5 text-[10px]">
+          <button type="button" data-move-up="${idx}" class="px-1 font-bold hover:text-emerald-600 disabled:opacity-30" ${idx === 0 ? 'disabled' : ''}>&larr;</button>
+          <button type="button" data-move-down="${idx}" class="px-1 font-bold hover:text-emerald-600 disabled:opacity-30" ${idx === doc.pages.length - 1 ? 'disabled' : ''}>&rarr;</button>
         </div>
-      </div>`).join('');
+      </div>
+    `).join('');
 
     let dragSrcIdx = -1;
     grid.querySelectorAll('.page-thumb-card').forEach((card) => {
@@ -2221,17 +2151,17 @@
         state.activePageIndex = idx;
         renderEditorView();
       });
-      card.addEventListener('dragstart', () => { dragSrcIdx = idx; });
+      card.addEventListener('dragstart', () => { dragSrcIdx = idx; card.classList.add('opacity-50'); });
+      card.addEventListener('dragend', () => { card.classList.remove('opacity-50'); });
       card.addEventListener('dragover', (e) => e.preventDefault());
       card.addEventListener('drop', async (e) => {
         e.preventDefault();
-        if (dragSrcIdx >= 0 && dragSrcIdx !== idx) {
-          const [moved] = doc.pages.splice(dragSrcIdx, 1);
-          doc.pages.splice(idx, 0, moved);
-          state.activePageIndex = idx;
-          await saveActiveDoc();
-          renderEditorView();
-        }
+        if (dragSrcIdx < 0 || dragSrcIdx === idx) return;
+        const [moved] = doc.pages.splice(dragSrcIdx, 1);
+        doc.pages.splice(idx, 0, moved);
+        state.activePageIndex = idx;
+        await saveActiveDoc();
+        renderEditorView();
       });
     });
 
@@ -2256,29 +2186,136 @@
         renderEditorView();
       });
     });
+  }
 
-    lucide.createIcons();
+  async function reprocessActivePage() {
+    const doc = getActiveDoc();
+    const page = doc?.pages[state.activePageIndex];
+    if (!page) return;
+
+    const img = await loadImageObj(page.originalDataUrl);
+    const rot = (page.rotation || 0) % 360;
+    const swap = rot === 90 || rot === 270;
+
+    const c = document.createElement('canvas');
+    c.width = swap ? img.height : img.width;
+    c.height = swap ? img.width : img.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+
+    ctx.save();
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate((rot * Math.PI) / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    ctx.restore();
+
+    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const d = imgData.data;
+    const filter = page.filter || 'original';
+    const brightness = page.brightness || 0;
+    const contrast = page.contrast || 0;
+    const cFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+    // Adaptive shadow threshold (Integral Image untuk kecepatan tinggi)
+    let integral = null;
+    if (filter === 'shadow') {
+      const w = c.width, h = c.height;
+      integral = new Float64Array(w * h);
+      for (let y = 0; y < h; y++) {
+        let rowSum = 0;
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          rowSum += g;
+          integral[y * w + x] = rowSum + (y > 0 ? integral[(y - 1) * w + x] : 0);
+        }
+      }
+      const rad = Math.max(8, Math.round(Math.min(w, h) * 0.025));
+      for (let y = 0; y < h; y++) {
+        const y1 = Math.max(0, y - rad), y2 = Math.min(h - 1, y + rad);
+        for (let x = 0; x < w; x++) {
+          const x1 = Math.max(0, x - rad), x2 = Math.min(w - 1, x + rad);
+          const count = (x2 - x1 + 1) * (y2 - y1 + 1);
+          const sum = integral[y2 * w + x2]
+            - (y1 > 0 ? integral[(y1 - 1) * w + x2] : 0)
+            - (x1 > 0 ? integral[y2 * w + (x1 - 1)] : 0)
+            + (y1 > 0 && x1 > 0 ? integral[(y1 - 1) * w + (x1 - 1)] : 0);
+          const localMean = sum / count;
+          const i = (y * w + x) * 4;
+          const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          const val = g < localMean * 0.88 ? Math.max(0, g * 0.45) : 255;
+          d[i] = d[i + 1] = d[i + 2] = val;
+        }
+      }
+    } else {
+      for (let i = 0; i < d.length; i += 4) {
+        let r = d[i], g = d[i + 1], b = d[i + 2];
+        if (filter === 'magic') {
+          r = Math.min(255, Math.max(0, (r - 128) * 1.38 + 148));
+          g = Math.min(255, Math.max(0, (g - 128) * 1.38 + 148));
+          b = Math.min(255, Math.max(0, (b - 128) * 1.38 + 148));
+        } else if (filter === 'grayscale') {
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          r = g = b = gray;
+        } else if (filter === 'bw') {
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          const bw = gray > 135 ? 255 : 0;
+          r = g = b = bw;
+        }
+
+        if (brightness !== 0 || contrast !== 0) {
+          r = cFactor * (r + brightness - 128) + 128;
+          g = cFactor * (g + brightness - 128) + 128;
+          b = cFactor * (b + brightness - 128) + 128;
+        }
+        d[i] = Math.min(255, Math.max(0, r));
+        d[i + 1] = Math.min(255, Math.max(0, g));
+        d[i + 2] = Math.min(255, Math.max(0, b));
+      }
+    }
+
+    // Sharpness (Unsharp Mask ringan jika > 0)
+    const sharp = (page.sharpness || 0) / 100;
+    if (sharp > 0) {
+      const copy = new Uint8ClampedArray(d);
+      const w = c.width, h = c.height;
+      const amt = sharp * 1.2;
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const i = (y * w + x) * 4;
+          for (let ch = 0; ch < 3; ch++) {
+            const center = copy[i + ch];
+            const neighbors = (copy[i - 4 + ch] + copy[i + 4 + ch] + copy[i - w * 4 + ch] + copy[i + w * 4 + ch]) * 0.25;
+            d[i + ch] = Math.min(255, Math.max(0, center + (center - neighbors) * amt));
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    page.processedDataUrl = c.toDataURL('image/jpeg', 0.88);
+    await saveActiveDoc();
+    renderEditorView();
   }
 
   // =========================================================================
-  // 11. TANDA TANGAN DIGITAL, AUTO-TRANSPARAN, STEMPEL & WATERMARK
+  // 11. TANDA TANGAN DIGITAL, STEMPEL & WATERMARK DIAGONAL
   // =========================================================================
   function initSignaturePad() {
-    const canvas = document.getElementById('signature-pad');
-    const ctx = canvas.getContext('2d');
+    const pad = document.getElementById('signature-pad');
+    const ctx = pad.getContext('2d');
     let drawing = false;
 
     const getPos = (e) => {
-      const r = canvas.getBoundingClientRect();
+      const rect = pad.getBoundingClientRect();
       return {
-        x: (e.clientX - r.left) * (canvas.width / r.width),
-        y: (e.clientY - r.top) * (canvas.height / r.height)
+        x: ((e.clientX - rect.left) / rect.width) * pad.width,
+        y: ((e.clientY - rect.top) / rect.height) * pad.height
       };
     };
 
-    canvas.addEventListener('pointerdown', (e) => {
+    pad.addEventListener('pointerdown', (e) => {
       drawing = true;
-      canvas.setPointerCapture(e.pointerId);
+      pad.setPointerCapture(e.pointerId);
       const p = getPos(e);
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
@@ -2287,51 +2324,54 @@
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
     });
-    canvas.addEventListener('pointermove', (e) => {
+    pad.addEventListener('pointermove', (e) => {
       if (!drawing) return;
       const p = getPos(e);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
     });
-    canvas.addEventListener('pointerup', () => { drawing = false; });
+    pad.addEventListener('pointerup', () => { drawing = false; });
   }
 
-  // Penghapus Latar Putih Otomatis untuk Foto Tanda Tangan
-  async function removeWhiteBgFromSignature(file) {
-    const url = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(file); });
-    const img = await loadImageObj(url);
-    const c = document.createElement('canvas');
-    c.width = Math.min(img.width, 600);
-    c.height = Math.round((img.height / img.width) * c.width);
-    const ctx = c.getContext('2d');
-    ctx.drawImage(img, 0, 0, c.width, c.height);
-    const imgData = ctx.getImageData(0, 0, c.width, c.height);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      if (lum > 185) d[i + 3] = 0; // Transparan untuk latar putih/terang
-      else d[i + 3] = 255;
-    }
-    ctx.putImageData(imgData, 0, 0);
-    placeInteractiveOverlay(c.toDataURL('image/png'));
+  function removeWhiteBgFromSignature(file) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const img = await loadImageObj(reader.result);
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, c.width, c.height);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        if (lum > 205) d[i + 3] = 0; // Transparan otomatis
+      }
+      ctx.putImageData(imgData, 0, 0);
+      placeInteractiveOverlay(c.toDataURL('image/png'));
+      showToast('Latar putih dihapus otomatis! Geser posisi tanda tangan lalu klik Tempel.', 'success');
+    };
+    reader.readAsDataURL(file);
   }
 
   function createStampDataUrl(text, color) {
     const c = document.createElement('canvas');
-    c.width = 360; c.height = 130;
+    c.width = 420; c.height = 150;
     const ctx = c.getContext('2d');
-    ctx.translate(180, 65);
-    ctx.rotate(-0.12);
+    ctx.save();
+    ctx.translate(210, 75);
+    ctx.rotate(-0.08);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 6;
-    ctx.strokeRect(-150, -40, 300, 80);
+    ctx.lineWidth = 7;
+    ctx.strokeRect(-185, -52, 370, 104);
     ctx.lineWidth = 2;
-    ctx.strokeRect(-142, -32, 284, 64);
+    ctx.strokeRect(-176, -43, 352, 86);
     ctx.fillStyle = color;
-    ctx.font = '900 36px sans-serif';
+    ctx.font = '900 42px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text.toUpperCase(), 0, 2);
+    ctx.fillText(text.toUpperCase().slice(0, 14), 0, 2);
+    ctx.restore();
     return c.toDataURL('image/png');
   }
 
@@ -2341,78 +2381,82 @@
 
     const layer = document.getElementById('overlay-layer');
     layer.innerHTML = '';
-    layer.style.pointerEvents = 'auto';
+    layer.classList.remove('pointer-events-none');
 
     const imgEl = document.createElement('img');
     imgEl.src = dataUrl;
     imgEl.className = 'doc-overlay-item';
-    imgEl.style.left = '30%';
-    imgEl.style.top = '60%';
+    imgEl.style.left = '25%';
+    imgEl.style.top = '35%';
     imgEl.style.width = '140px';
+    imgEl.draggable = false;
 
-    let startX = 0, startY = 0, origL = 0, origT = 0, dragging = false;
+    let dragging = false, startX = 0, startY = 0, initL = 0, initT = 0;
     imgEl.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       dragging = true;
       imgEl.setPointerCapture(e.pointerId);
       startX = e.clientX; startY = e.clientY;
-      origL = imgEl.offsetLeft; origT = imgEl.offsetTop;
+      initL = imgEl.offsetLeft; initT = imgEl.offsetTop;
     });
     imgEl.addEventListener('pointermove', (e) => {
       if (!dragging) return;
-      imgEl.style.left = (origL + (e.clientX - startX)) + 'px';
-      imgEl.style.top = (origT + (e.clientY - startY)) + 'px';
+      imgEl.style.left = (initL + e.clientX - startX) + 'px';
+      imgEl.style.top = (initT + e.clientY - startY) + 'px';
     });
     imgEl.addEventListener('pointerup', () => { dragging = false; });
 
     layer.appendChild(imgEl);
-    state.activeOverlay = { dataUrl, el: imgEl };
+    state.activeOverlay = { el: imgEl, dataUrl };
     document.getElementById('overlay-scale-slider').value = 140;
     document.getElementById('active-overlay-bar').classList.remove('hidden');
-    showToast('Geser tanda tangan/stempel ke posisi diinginkan, lalu klik "Tempel ke Halaman".', 'info');
-  }
-
-  async function bakeOverlayToPage() {
-    if (!state.activeOverlay) return;
-    const doc = getActiveDoc();
-    const page = doc.pages[state.activePageIndex];
-    const previewCanvas = document.getElementById('editor-preview-canvas');
-    const imgEl = state.activeOverlay.el;
-
-    const scaleX = previewCanvas.width / previewCanvas.clientWidth;
-    const scaleY = previewCanvas.height / previewCanvas.clientHeight;
-    const drawX = imgEl.offsetLeft * scaleX;
-    const drawY = imgEl.offsetTop * scaleY;
-    const drawW = imgEl.clientWidth * scaleX;
-    const drawH = imgEl.clientHeight * scaleY;
-
-    const overlayImg = await loadImageObj(state.activeOverlay.dataUrl);
-    const ctx = previewCanvas.getContext('2d');
-    ctx.drawImage(overlayImg, drawX, drawY, drawW, drawH);
-
-    const newUrl = previewCanvas.toDataURL('image/jpeg', 0.92);
-    page.processedDataUrl = newUrl;
-    page.originalDataUrl = newUrl;
-    cancelOverlay();
-    await saveActiveDoc();
-    renderEditorView();
-    showToast('Elemen berhasil ditempel permanen ke halaman!', 'success');
   }
 
   function cancelOverlay() {
     const layer = document.getElementById('overlay-layer');
     layer.innerHTML = '';
-    layer.style.pointerEvents = 'none';
+    layer.classList.add('pointer-events-none');
     state.activeOverlay = null;
     document.getElementById('active-overlay-bar').classList.add('hidden');
+  }
+
+  async function bakeOverlayToPage() {
+    if (!state.activeOverlay) return;
+    const doc = getActiveDoc();
+    const page = doc?.pages[state.activePageIndex];
+    if (!page) return;
+
+    const previewCanvas = document.getElementById('editor-preview-canvas');
+    const dispRect = previewCanvas.getBoundingClientRect();
+    const elRect = state.activeOverlay.el.getBoundingClientRect();
+
+    const scaleX = previewCanvas.width / dispRect.width;
+    const scaleY = previewCanvas.height / dispRect.height;
+
+    const x = (elRect.left - dispRect.left) * scaleX;
+    const y = (elRect.top - dispRect.top) * scaleY;
+    const w = elRect.width * scaleX;
+    const h = elRect.height * scaleY;
+
+    const ovImg = await loadImageObj(state.activeOverlay.dataUrl);
+    const ctx = previewCanvas.getContext('2d');
+    ctx.drawImage(ovImg, x, y, w, h);
+
+    const bakedUrl = previewCanvas.toDataURL('image/jpeg', 0.9);
+    page.originalDataUrl = bakedUrl;
+    page.processedDataUrl = bakedUrl;
+    cancelOverlay();
+    await saveActiveDoc();
+    renderEditorView();
+    showToast('Elemen berhasil ditempel ke halaman!', 'success');
   }
 
   async function applyDiagonalWatermark() {
     const text = document.getElementById('input-watermark-text').value.trim();
     if (!text) return showToast('Masukkan teks watermark terlebih dahulu.', 'warning');
     const doc = getActiveDoc();
-    if (!doc || !doc.pages[state.activePageIndex]) return;
-    const page = doc.pages[state.activePageIndex];
+    const page = doc?.pages[state.activePageIndex];
+    if (!page) return showToast('Belum ada halaman aktif.', 'warning');
 
     const img = await loadImageObj(page.processedDataUrl);
     const c = document.createElement('canvas');
@@ -2423,23 +2467,138 @@
     ctx.save();
     ctx.translate(c.width / 2, c.height / 2);
     ctx.rotate(-Math.PI / 4);
-    ctx.fillStyle = 'rgba(100, 116, 139, 0.28)';
-    ctx.font = `900 ${Math.max(28, Math.round(c.width / 14))}px sans-serif`;
+    const fontSize = Math.max(24, Math.round(c.width * 0.055));
+    ctx.font = `800 ${fontSize}px sans-serif`;
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.25)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text.toUpperCase(), 0, 0);
+    for (let offsetY = -c.height; offsetY <= c.height; offsetY += fontSize * 4) {
+      ctx.fillText(text.toUpperCase(), 0, offsetY);
+    }
     ctx.restore();
 
-    const newUrl = c.toDataURL('image/jpeg', 0.92);
-    page.processedDataUrl = newUrl;
-    page.originalDataUrl = newUrl;
+    const wmUrl = c.toDataURL('image/jpeg', 0.9);
+    page.originalDataUrl = wmUrl;
+    page.processedDataUrl = wmUrl;
     await saveActiveDoc();
     renderEditorView();
-    showToast('Watermark diagonal berhasil diterapkan!', 'success');
+    showToast('Watermark diagonal diterapkan!', 'success');
   }
 
   // =========================================================================
-  // 12. OCR OFFLINE (TESSERACT) & GEMINI AI (ROTASI MULTI-API KEY)
+  // 12. EKSPOR PDF (A4/F4/LETTER/AUTO-FIT, KOMPRESI, PASSWORD, SHARE, PRINT)
+  // =========================================================================
+  async function buildPdfDocument() {
+    const doc = getActiveDoc();
+    if (!doc || doc.pages.length === 0) throw new Error('Tidak ada halaman untuk diekspor.');
+    if (!window.jspdf?.jsPDF) throw new Error('Pustaka jsPDF belum termuat.');
+
+    const sizeKey = document.getElementById('export-paper-size').value;
+    const quality = parseFloat(document.getElementById('export-quality').value) || 0.72;
+    const password = document.getElementById('export-pdf-password').value.trim();
+
+    const formats = {
+      a4: [210, 297],
+      f4: [215, 330],
+      letter: [215.9, 279.4]
+    };
+
+    let pdf = null;
+
+    for (let i = 0; i < doc.pages.length; i++) {
+      const img = await loadImageObj(doc.pages[i].processedDataUrl);
+      // Kompresi ulang sesuai pilihan kualitas
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      const compressedData = c.toDataURL('image/jpeg', quality);
+
+      let pageW, pageH, orientation;
+      if (sizeKey === 'autofit') {
+        const pxToMm = 0.264583;
+        pageW = Math.max(50, img.width * pxToMm);
+        pageH = Math.max(50, img.height * pxToMm);
+        orientation = pageW > pageH ? 'l' : 'p';
+      } else {
+        [pageW, pageH] = formats[sizeKey] || formats.a4;
+        orientation = img.width > img.height ? 'l' : 'p';
+        if (orientation === 'l') [pageW, pageH] = [pageH, pageW];
+      }
+
+      if (i === 0) {
+        const opts = { orientation, unit: 'mm', format: [pageW, pageH], compress: true };
+        if (password) {
+          opts.encryption = {
+            userPassword: password,
+            ownerPassword: password,
+            userPermissions: ['print', 'modify', 'copy', 'annot-forms']
+          };
+        }
+        pdf = new window.jspdf.jsPDF(opts);
+      } else {
+        pdf.addPage([pageW, pageH], orientation);
+      }
+
+      const margin = sizeKey === 'autofit' ? 0 : 6;
+      const maxW = pageW - margin * 2;
+      const maxH = pageH - margin * 2;
+      const ratio = Math.min(maxW / img.width, maxH / img.height);
+      const drawW = img.width * ratio;
+      const drawH = img.height * ratio;
+      const offsetX = (pageW - drawW) / 2;
+      const offsetY = (pageH - drawH) / 2;
+
+      pdf.addImage(compressedData, 'JPEG', offsetX, offsetY, drawW, drawH, undefined, 'FAST');
+    }
+
+    return { pdf, filename: `${doc.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf` };
+  }
+
+  async function handleExportPdf() {
+    try {
+      showToast('Menyusun file PDF...', 'info');
+      const { pdf, filename } = await buildPdfDocument();
+      pdf.save(filename);
+      showToast(`PDF "${filename}" berhasil diunduh!`, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function handleSharePdf() {
+    try {
+      showToast('Menyiapkan PDF untuk dibagikan...', 'info');
+      const { pdf, filename } = await buildPdfDocument();
+      const blob = pdf.output('blob');
+      const file = new File([blob], filename, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: filename,
+          text: 'Dokumen dipindai dengan Alfian Scan Pro (alfian tech)',
+          files: [file]
+        });
+      } else {
+        pdf.save(filename);
+        showToast('Browser tidak mendukung Web Share file; PDF diunduh langsung.', 'info');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') showToast(err.message, 'error');
+    }
+  }
+
+  async function handlePrintDoc() {
+    const doc = getActiveDoc();
+    if (!doc || doc.pages.length === 0) return showToast('Tidak ada halaman untuk dicetak.', 'warning');
+    const win = window.open('', '_blank');
+    if (!win) return showToast('Pop-up diblokir browser. Izinkan pop-up untuk mencetak.', 'warning');
+    const imgsHtml = doc.pages.map((p) => `<div style="page-break-after:always;text-align:center;"><img src="${p.processedDataUrl}" style="max-width:100%;max-height:98vh;"/></div>`).join('');
+    win.document.write(`<html><head><title>${escapeHtml(doc.title)}</title></head><body style="margin:0;">${imgsHtml}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+    win.document.close();
+  }
+
+  // =========================================================================
+  // 13. OCR OFFLINE (TESSERACT.JS) & GEMINI AI MULTI-API KEY + WORD/EXCEL
   // =========================================================================
   function setAiProgress(show, label = '', pct = 0) {
     const box = document.getElementById('ai-progress-box');
@@ -2453,20 +2612,23 @@
 
   async function runOfflineOcr() {
     const doc = getActiveDoc();
-    if (!doc || !doc.pages[state.activePageIndex]) return showToast('Tidak ada halaman aktif untuk di-OCR.', 'warning');
-    if (!window.Tesseract) return showToast('Tesseract.js belum termuat.', 'error');
+    const page = doc?.pages[state.activePageIndex];
+    if (!page) return showToast('Tidak ada halaman aktif untuk di-OCR.', 'warning');
+    if (!window.Tesseract) return showToast('Pustaka Tesseract.js belum termuat.', 'error');
 
-    setAiProgress(true, 'Menjalankan OCR Offline (Tesseract.js)...', 15);
     try {
-      const page = doc.pages[state.activePageIndex];
-      const { data } = await window.Tesseract.recognize(page.processedDataUrl, 'eng+ind', {
+      setAiProgress(true, 'Menjalankan OCR Offline (Tesseract)...', 15);
+      const res = await window.Tesseract.recognize(page.processedDataUrl, 'ind+eng', {
         logger: (m) => {
-          if (m.status === 'recognizing text') setAiProgress(true, 'Membaca teks secara offline...', 20 + m.progress * 75);
+          if (m.status === 'recognizing text') {
+            setAiProgress(true, 'Membaca teks secara offline...', 20 + m.progress * 75);
+          }
         }
       });
-      document.getElementById('ai-result-textarea').value = data.text.trim();
+      const text = (res.data?.text || '').trim();
       document.getElementById('ai-html-preview').classList.add('hidden');
-      doc.ocrText = data.text.trim();
+      document.getElementById('ai-result-textarea').value = text || '(Tidak ada teks terdeteksi)';
+      doc.ocrText = text;
       await saveActiveDoc();
       showToast('OCR Offline selesai!', 'success');
     } catch (err) {
@@ -2476,82 +2638,83 @@
     }
   }
 
-  async function callGeminiWithRotation(promptText, base64Image = null) {
-    if (state.apiKeys.length === 0) {
-      throw new Error('Belum ada Gemini API Key. Silakan tambahkan minimal 1 API Key di menu Pengaturan.');
+  async function callGeminiWithRotation(promptText, imageBase64 = null) {
+    if (!state.apiKeys || state.apiKeys.length === 0) {
+      throw new Error('Gemini API Key belum diisi! Silakan tambahkan API Key di menu Pengaturan.');
     }
-    const maxAttempts = state.apiKeys.length;
+
+    const totalKeys = state.apiKeys.length;
     let lastError = null;
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const idx = (state.apiKeyIndex + attempt) % state.apiKeys.length;
+    for (let attempt = 0; attempt < totalKeys; attempt++) {
+      const idx = (state.apiKeyIndex + attempt) % totalKeys;
       const apiKey = state.apiKeys[idx];
+
       const parts = [{ text: promptText }];
-      if (base64Image) {
-        const cleanBase64 = base64Image.split(',')[1];
-        parts.push({ inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } });
+      if (imageBase64) {
+        parts.push({
+          inline_data: {
+            mime_type: 'image/jpeg',
+            data: imageBase64.replace(/^data:image\/\w+;base64,/, '')
+          }
+        });
       }
 
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
       try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        const resp = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts }] })
         });
-        if (res.status === 429 || res.status === 403) {
-          lastError = new Error(`Key #${idx + 1} terkena limit/ditolak (${res.status}), merotasi ke key berikutnya...`);
+        if (resp.status === 429 || resp.status === 403) {
+          lastError = new Error(`API Key #${idx + 1} limit/ditolak (${resp.status}), mencoba key berikutnya...`);
           continue;
         }
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          throw new Error(errJson.error?.message || `HTTP ${res.status}`);
-        }
-        const json = await res.json();
-        state.apiKeyIndex = (idx + 1) % state.apiKeys.length; // Rotasi round-robin
-        return json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error?.message || `HTTP ${resp.status}`);
+        state.apiKeyIndex = (idx + 1) % totalKeys; // Rotasi otomatis
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!text) throw new Error('Respon kosong dari Gemini AI.');
+        return text;
       } catch (err) {
         lastError = err;
       }
     }
-    throw lastError || new Error('Semua Gemini API Key gagal merespons.');
+    throw lastError || new Error('Semua Gemini API Key gagal dihubungi.');
   }
 
   async function runGeminiTask(taskType) {
     const doc = getActiveDoc();
-    if (!doc || !doc.pages[state.activePageIndex]) return showToast('Pilih dokumen & halaman terlebih dahulu.', 'warning');
-    const page = doc.pages[state.activePageIndex];
-    const lang = document.getElementById('ai-translate-lang').value;
+    const page = doc?.pages[state.activePageIndex];
+    if (!page) return showToast('Pilih atau pindai halaman dokumen terlebih dahulu.', 'warning');
 
+    const targetLang = document.getElementById('ai-translate-lang').value;
     const prompts = {
-      ocr: 'Ekstrak seluruh teks cetak maupun tulisan tangan dari gambar dokumen ini dengan sangat akurat. Jika terdapat tabel, format tabel tersebut dalam tag HTML <table><thead>...</thead><tbody>...</tbody></table> yang rapi tanpa markdown code fence agar siap diekspor ke Excel dan Word.',
-      summarize: 'Baca dokumen pada gambar ini lalu buat ringkasan terstruktur dalam Bahasa Indonesia mencakup: Judul/Topik, Poin Utama, Tanggal/Angka Penting, dan Kesimpulan.',
-      translate: `Baca seluruh isi dokumen pada gambar ini lalu terjemahkan secara akurat dan alami ke dalam bahasa ${lang}.`,
-      clean: 'Bersihkan noda, coretan, typo OCR, dan rekonstruksi ulang seluruh teks dokumen pada gambar ini menjadi naskah formal yang bersih, rapi, dan siap cetak.'
+      ocr: 'Ekstrak seluruh teks cetak maupun tulisan tangan dari gambar dokumen ini dengan sangat akurat. Jika terdapat tabel, ubah bagian tabel menjadi tag HTML <table><thead>...</thead><tbody>...</tbody></table> yang rapi tanpa blok markdown.',
+      summarize: 'Ringkas isi dokumen pada gambar ini menjadi poin-poin utama yang jelas, terstruktur, dan mudah dipahami dalam Bahasa Indonesia.',
+      translate: `Ekstrak teks dari dokumen ini lalu terjemahkan seluruh isinya secara akurat ke dalam ${targetLang}.`,
+      clean: 'Baca dokumen pada gambar ini, abaikan noda, coretan, atau gangguan visual, lalu rekonstruksi kembali seluruh naskah menjadi teks bersih, rapi, dan siap cetak.'
     };
 
-    setAiProgress(true, 'Menghubungi Gemini AI (Rotasi API Key)...', 35);
     try {
+      setAiProgress(true, 'Menghubungi Gemini AI...', 40);
       const output = await callGeminiWithRotation(prompts[taskType], page.processedDataUrl);
-      setAiProgress(true, 'Menyusun hasil...', 90);
-      const cleanedOutput = output.replace(/^```html\s*/i, '').replace(/```$/i, '').trim();
-      document.getElementById('ai-result-textarea').value = cleanedOutput;
+      setAiProgress(true, 'Menyimpan hasil...', 90);
 
-      const htmlPreview = document.getElementById('ai-html-preview');
-      if (cleanedOutput.includes('<table')) {
-        htmlPreview.innerHTML = cleanedOutput;
-        htmlPreview.classList.remove('hidden');
+      const previewBox = document.getElementById('ai-html-preview');
+      const textarea = document.getElementById('ai-result-textarea');
+      textarea.value = output;
+
+      if (/<table[\s\S]*<\/table>/i.test(output)) {
+        previewBox.innerHTML = output;
+        previewBox.classList.remove('hidden');
       } else {
-        htmlPreview.classList.add('hidden');
+        previewBox.classList.add('hidden');
       }
 
-      if (taskType === 'summarize') doc.aiSummary = cleanedOutput;
-      else doc.ocrText = cleanedOutput;
-
-      if (taskType === 'clean') {
-        // Sekaligus aktifkan filter Hapus Bayangan di halaman untuk pembersihan visual
-        page.filter = 'shadow';
-        await reprocessActivePage();
-      }
+      if (taskType === 'summarize') doc.aiSummary = output;
+      else doc.ocrText = output;
       await saveActiveDoc();
       showToast('Proses Gemini AI selesai!', 'success');
     } catch (err) {
@@ -2561,161 +2724,45 @@
     }
   }
 
-  // Ekspor Hasil AI ke Word (.doc) & Excel (.xlsx via SheetJS)
   function exportResultToWord() {
     const content = document.getElementById('ai-result-textarea').value.trim();
     if (!content) return showToast('Belum ada hasil teks/tabel untuk diekspor ke Word.', 'warning');
     const doc = getActiveDoc();
-    const html = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
-      <head><meta charset='utf-8'><title>${escapeHtml(doc?.title || 'Dokumen')}</title>
-      <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;} table{border-collapse:collapse;width:100%;} td,th{border:1px solid #333;padding:6px;}</style>
-      </head><body>${content.includes('<table') ? content : '<p>' + escapeHtml(content).replace(/\n/g, '<br>') + '</p>'}</body></html>`;
-    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
-    downloadBlob(blob, `${doc?.title || 'AlfianScan'}.doc`);
-    showToast('File Word (.doc) diunduh!', 'success');
+    const title = (doc?.title || 'Dokumen_AlfianScan').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const htmlBody = /<table/i.test(content) ? content : `<pre style="font-family:Calibri,sans-serif;white-space:pre-wrap;">${escapeHtml(content)}</pre>`;
+    const wordHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${title}</title></head><body>${htmlBody}</body></html>`;
+    const blob = new Blob(['\ufeff', wordHtml], { type: 'application/msword' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${title}.doc`;
+    a.click();
+    showToast('File Word (.doc) berhasil diunduh!', 'success');
   }
 
   function exportResultToExcel() {
-    if (!window.XLSX) return showToast('Pustaka SheetJS belum siap.', 'error');
+    if (!window.XLSX) return showToast('Pustaka SheetJS belum termuat.', 'error');
     const content = document.getElementById('ai-result-textarea').value.trim();
     if (!content) return showToast('Belum ada hasil teks/tabel untuk diekspor ke Excel.', 'warning');
     const doc = getActiveDoc();
+    const title = (doc?.title || 'Tabel_AlfianScan').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    const wb = window.XLSX.utils.book_new();
-    const previewEl = document.getElementById('ai-html-preview');
-    const tableEl = previewEl.querySelector('table');
-
-    let ws;
+    let wb;
+    const previewBox = document.getElementById('ai-html-preview');
+    const tableEl = previewBox.querySelector('table');
     if (tableEl) {
-      ws = window.XLSX.utils.table_to_sheet(tableEl);
+      wb = window.XLSX.utils.table_to_book(tableEl, { sheet: 'Hasil_Scan' });
     } else {
-      const rows = content.split('\n').map((line) => [line]);
-      ws = window.XLSX.utils.aoa_to_sheet([['Hasil Ekstraksi Alfian Scan Pro'], ...rows]);
+      const rows = content.split('\n').map((line) => line.split(/\t|\|/).map((cell) => cell.trim()));
+      const ws = window.XLSX.utils.aoa_to_sheet(rows);
+      wb = window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb, ws, 'Hasil_Scan');
     }
-    window.XLSX.utils.book_append_sheet(wb, ws, 'HasilScan');
-    window.XLSX.writeFile(wb, `${doc?.title || 'AlfianScan'}.xlsx`);
-    showToast('File Excel (.xlsx) diunduh!', 'success');
+    window.XLSX.writeFile(wb, `${title}.xlsx`);
+    showToast('File Excel (.xlsx) berhasil diunduh!', 'success');
   }
 
   // =========================================================================
-  // 13. EKSPOR PDF (jsPDF + UKURAN A4/F4/LETTER/AUTOFIT + PASSWORD + SHARE)
-  // =========================================================================
-  async function buildPdfBlob() {
-    const doc = getActiveDoc();
-    if (!doc || doc.pages.length === 0) throw new Error('Dokumen kosong. Pindai minimal 1 halaman.');
-    const { jsPDF } = window.jspdf;
-    const paper = document.getElementById('export-paper-size').value;
-    const quality = parseFloat(document.getElementById('export-quality').value || '0.72');
-    const password = document.getElementById('export-pdf-password').value;
-
-    const formats = {
-      a4: [210, 297],
-      f4: [215, 330],
-      letter: [215.9, 279.4]
-    };
-
-    const firstImg = await loadImageObj(doc.pages[0].processedDataUrl);
-    let initFormat = formats[paper] || [210, 297];
-    let initOrient = 'portrait';
-
-    if (paper === 'autofit') {
-      initFormat = [firstImg.width * 0.264583, firstImg.height * 0.264583];
-      initOrient = firstImg.width > firstImg.height ? 'landscape' : 'portrait';
-    }
-
-    const pdfOpts = { orientation: initOrient, unit: 'mm', format: initFormat, compress: true };
-    if (password) {
-      pdfOpts.encryption = {
-        userPassword: password,
-        ownerPassword: password + '_alfian',
-        userPermissions: ['print', 'copy']
-      };
-    }
-
-    const pdf = new jsPDF(pdfOpts);
-
-    for (let i = 0; i < doc.pages.length; i++) {
-      const img = await loadImageObj(doc.pages[i].processedDataUrl);
-      // Kompresi ulang sesuai kualitas pilihan
-      const c = document.createElement('canvas');
-      c.width = img.width; c.height = img.height;
-      c.getContext('2d').drawImage(img, 0, 0);
-      const compressedData = c.toDataURL('image/jpeg', quality);
-
-      let pageW, pageH;
-      if (paper === 'autofit') {
-        pageW = img.width * 0.264583;
-        pageH = img.height * 0.264583;
-        if (i > 0) pdf.addPage([pageW, pageH], pageW > pageH ? 'landscape' : 'portrait');
-        pdf.addImage(compressedData, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
-      } else {
-        const [fw, fh] = formats[paper];
-        if (i > 0) pdf.addPage([fw, fh], 'portrait');
-        const margin = 8;
-        const maxW = fw - margin * 2;
-        const maxH = fh - margin * 2;
-        const ratio = Math.min(maxW / img.width, maxH / img.height);
-        const w = img.width * ratio;
-        const h = img.height * ratio;
-        const x = (fw - w) / 2;
-        const y = (fh - h) / 2;
-        pdf.addImage(compressedData, 'JPEG', x, y, w, h, undefined, 'FAST');
-      }
-    }
-
-    return { blob: pdf.output('blob'), filename: `${doc.title || 'AlfianScan'}.pdf` };
-  }
-
-  function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  async function handleExportPdf() {
-    try {
-      showToast('Menyusun file PDF...', 'info');
-      const { blob, filename } = await buildPdfBlob();
-      downloadBlob(blob, filename);
-      showToast(`PDF berhasil diunduh (${(blob.size / 1024).toFixed(0)} KB)!`, 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  }
-
-  async function handleSharePdf() {
-    try {
-      const { blob, filename } = await buildPdfBlob();
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: filename, text: 'Dikirim dari Alfian Scan Pro', files: [file] });
-      } else {
-        downloadBlob(blob, filename);
-        showToast('Web Share tidak didukung di browser ini — PDF diunduh otomatis.', 'info');
-      }
-    } catch (err) {
-      if (err.name !== 'AbortError') showToast('Gagal membagikan: ' + err.message, 'error');
-    }
-  }
-
-  function handlePrintDoc() {
-    const doc = getActiveDoc();
-    if (!doc || doc.pages.length === 0) return showToast('Tidak ada halaman untuk dicetak.', 'warning');
-    const win = window.open('', '_blank');
-    if (!win) return showToast('Popup diblokir browser. Izinkan popup untuk mencetak.', 'warning');
-    win.document.write(`
-      <html><head><title>${escapeHtml(doc.title)}</title>
-      <style>body{margin:0;text-align:center;} img{max-width:100%;page-break-after:always;display:block;margin:0 auto;}</style>
-      </head><body>${doc.pages.map((p) => `<img src="${p.processedDataUrl}" />`).join('')}</body></html>`);
-    win.document.close();
-    win.onload = () => { win.focus(); win.print(); };
-  }
-
-  // =========================================================================
-  // 14. PENGATURAN MULTI-API KEY & MANAJEMEN USER (ADMIN SUPABASE)
+  // 14. PENGATURAN MULTI-API KEY GEMINI
   // =========================================================================
   async function loadSettingsAndKeys() {
     const localKeys = JSON.parse(localStorage.getItem('alfian_scan_gemini_keys') || '[]');
@@ -2741,7 +2788,7 @@
       await supabase.from('app_settings').upsert({
         setting_key: 'gemini_api_keys',
         setting_value: state.apiKeys,
-        updated_by: state.currentUser?.username || 'system',
+        updated_by: state.currentUser?.username || 'admin',
         updated_at: new Date().toISOString()
       }, { onConflict: 'setting_key' }).catch(() => {});
     }
@@ -2773,74 +2820,22 @@
     });
   }
 
-  async function loadAdminUsers() {
-    if (IS_PREVIEW) {
-      state.usersList = [...PREVIEW_DUMMY_USERS];
-      renderAdminUsersTable();
-      return;
-    }
-    if (!supabase) return;
-    try {
-      const { data, error } = await supabase.from('app_users').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      state.usersList = data || [];
-      renderAdminUsersTable();
-    } catch (err) {
-      showToast('Gagal memuat daftar user: ' + err.message, 'error');
-    }
-  }
-
-  function renderAdminUsersTable() {
-    const tbody = document.getElementById('admin-users-tbody');
-    if (state.usersList.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400">Belum ada data user.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = state.usersList.map((u) => `
-      <tr>
-        <td class="py-2.5 pr-3 font-semibold">${escapeHtml(u.full_name)}</td>
-        <td class="py-2.5 pr-3 font-mono text-emerald-600 dark:text-emerald-400">${escapeHtml(u.username)}</td>
-        <td class="py-2.5 pr-3">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">
-            ${u.is_active ? 'Aktif' : 'Nonaktif'}
-          </span>
-        </td>
-        <td class="py-2.5 text-right">
-          <button data-del-user="${u.id}" class="text-rose-500 hover:underline font-bold">Hapus</button>
-        </td>
-      </tr>`).join('');
-
-    tbody.querySelectorAll('[data-del-user]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.delUser;
-        if (IS_PREVIEW) {
-          const idx = PREVIEW_DUMMY_USERS.findIndex((x) => x.id === id);
-          if (idx >= 0) PREVIEW_DUMMY_USERS.splice(idx, 1);
-          loadAdminUsers();
-          return;
-        }
-        const { error } = await supabase.from('app_users').delete().eq('id', id);
-        if (error) return showToast(error.message, 'error');
-        showToast('User dihapus.', 'info');
-        loadAdminUsers();
-      });
-    });
-  }
-
   // =========================================================================
   // 15. INISIALISASI EVENT LISTENER & BOOTSTRAP APLIKASI
   // =========================================================================
   function bindEvents() {
-    // Login & Preview Controls
-    document.getElementById('tab-login-user').onclick = () => setLoginTab('user');
-    document.getElementById('tab-login-admin').onclick = () => setLoginTab('admin');
+    // Login Admin & Preview Controls
     document.getElementById('login-form').onsubmit = handleLoginSubmit;
 
     if (IS_PREVIEW) {
       document.getElementById('preview-banner').classList.remove('hidden');
       document.getElementById('preview-quick-login').classList.remove('hidden');
-      document.getElementById('btn-quick-admin').onclick = () => enterApp({ username: 'admin@alfiantech.id', fullName: 'Admin Preview', role: 'admin' });
-      document.getElementById('btn-quick-user').onclick = () => enterApp({ username: 'operator1', fullName: 'Operator Demo', role: 'user' });
+      document.getElementById('btn-quick-admin').onclick = () => enterApp({
+        username: 'admin@alfiantech.id',
+        fullName: 'Admin Preview',
+        role: 'admin',
+        email: 'admin@alfiantech.id'
+      });
     }
 
     // Tema & Logout
@@ -2880,16 +2875,23 @@
     document.querySelectorAll('.scan-mode-btn').forEach((btn) => {
       btn.addEventListener('click', () => setScanMode(btn.dataset.scanMode));
     });
-    document.getElementById('toggle-batch-scan').onchange = (e) => {
+    const batchCheckbox = document.getElementById('toggle-batch-scan');
+    batchCheckbox.checked = state.batchMode;
+    batchCheckbox.onchange = (e) => {
       state.batchMode = e.target.checked;
-      state.batchCount = 0;
-      document.getElementById('btn-finish-batch').classList.add('hidden');
+      if (!state.batchMode) document.getElementById('btn-finish-batch').classList.add('hidden');
     };
     document.getElementById('btn-finish-batch').onclick = () => {
-      state.batchCount = 0;
       document.getElementById('btn-finish-batch').classList.add('hidden');
       switchView('editor');
     };
+    document.getElementById('btn-scan-new-doc').onclick = async () => {
+      await createNewDocument(null, state.scanMode);
+      document.getElementById('btn-finish-batch').classList.add('hidden');
+      renderScanFilmstrip();
+      showToast('Dokumen baru dibuat dan siap dipindai.', 'success');
+    };
+    document.getElementById('btn-scan-goto-editor').onclick = () => switchView('editor');
     document.getElementById('btn-reset-idcard').onclick = () => setScanMode('idcard');
     document.getElementById('btn-start-camera').onclick = startCamera;
     document.getElementById('btn-stop-camera').onclick = stopCamera;
@@ -2900,29 +2902,34 @@
     document.getElementById('input-import-images').onchange = async (e) => {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
-      for (const f of files) {
-        const dataUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
-        if (files.length > 1) {
-          await addPageToActiveDoc(dataUrl);
-        } else {
-          await processCapturedImage(dataUrl);
-        }
-      }
+      if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
+
       if (files.length > 1) {
-        showToast(`${files.length} foto berhasil diimpor!`, 'success');
-        switchView('editor');
+        showToast(`Mengimpor ${files.length} foto sekaligus...`, 'info');
+        for (const f of files) {
+          const rawUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+          const normUrl = await normalizeImageDataUrl(rawUrl, 1600, 0.86);
+          await addPageToActiveDoc(normUrl);
+        }
+        showToast(`${files.length} foto berhasil ditambahkan ke dokumen!`, 'success');
+        if (!state.batchMode) switchView('editor');
+      } else {
+        const rawUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(files[0]); });
+        await processCapturedImage(rawUrl);
       }
       e.target.value = '';
     };
 
     document.getElementById('input-import-pdf').onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (file) await handleImportPdf(file);
+      if (e.target.files?.length) await handleImportPdfFiles(e.target.files);
       e.target.value = '';
     };
 
     // Cropper Controls
     initCropHandleDrag();
+    window.addEventListener('resize', () => {
+      if (state.cropContext) updateCropHandlesUI();
+    });
     document.getElementById('btn-crop-auto').onclick = () => {
       if (!state.cropContext) return;
       state.cropContext.corners = detectDocumentCorners(state.cropContext.img);
@@ -2932,7 +2939,8 @@
       document.getElementById('modal-cropper').classList.add('hidden');
       state.cropContext = null;
     };
-    document.getElementById('btn-crop-apply').onclick = applyPerspectiveWarp;
+    document.getElementById('btn-crop-apply').onclick = () => applyPerspectiveWarp(false);
+    document.getElementById('btn-crop-apply-next').onclick = () => applyPerspectiveWarp(true);
 
     // Editor Controls
     document.getElementById('editor-doc-title').onchange = async (e) => {
@@ -2961,7 +2969,7 @@
         page.processedDataUrl = warpedUrl;
         await reprocessActivePage();
         renderEditorView();
-      });
+      }, false);
     };
     document.getElementById('btn-rotate-page').onclick = async () => {
       const doc = getActiveDoc();
@@ -3067,14 +3075,22 @@
     document.getElementById('btn-ai-translate').onclick = () => runGeminiTask('translate');
     document.getElementById('btn-ai-clean').onclick = () => runGeminiTask('clean');
     document.getElementById('btn-copy-ai-result').onclick = () => {
-      const txt = document.getElementById('ai-result-textarea').value;
-      if (!txt) return;
-      navigator.clipboard.writeText(txt).then(() => showToast('Teks disalin ke clipboard!', 'success'));
+      const ta = document.getElementById('ai-result-textarea');
+      const txt = ta.value;
+      if (!txt) return showToast('Tidak ada teks untuk disalin.', 'warning');
+      try {
+        ta.select();
+        ta.setSelectionRange(0, txt.length);
+        document.execCommand('copy');
+        showToast('Teks disalin ke clipboard!', 'success');
+      } catch {
+        navigator.clipboard?.writeText(txt).then(() => showToast('Teks disalin ke clipboard!', 'success'));
+      }
     };
     document.getElementById('btn-export-word').onclick = exportResultToWord;
     document.getElementById('btn-export-excel').onclick = exportResultToExcel;
 
-    // Settings & Admin
+    // Settings
     document.getElementById('btn-add-apikey').onclick = () => {
       const inp = document.getElementById('input-new-apikey');
       const val = inp.value.trim();
@@ -3092,24 +3108,6 @@
       } catch (err) {
         showToast(err.message, 'error');
       }
-    };
-    document.getElementById('btn-refresh-users').onclick = loadAdminUsers;
-    document.getElementById('form-add-user').onsubmit = async (e) => {
-      e.preventDefault();
-      const full_name = document.getElementById('new-user-fullname').value.trim();
-      const username = document.getElementById('new-user-username').value.trim();
-      const password = document.getElementById('new-user-password').value;
-      if (IS_PREVIEW) {
-        PREVIEW_DUMMY_USERS.unshift({ id: 'prev-' + Date.now(), full_name, username, password, role: 'user', is_active: true });
-        e.target.reset();
-        loadAdminUsers();
-        return showToast('User ditambahkan di memori preview.', 'success');
-      }
-      const { error } = await supabase.from('app_users').insert([{ full_name, username, password, role: 'user', is_active: true }]);
-      if (error) return showToast('Gagal tambah user: ' + error.message, 'error');
-      e.target.reset();
-      showToast('User baru berhasil disimpan ke Supabase!', 'success');
-      loadAdminUsers();
     };
 
     // Online / Offline Indicator
@@ -3135,24 +3133,17 @@
     bindEvents();
     lucide.createIcons();
 
-    // Cek sesi aktif saat mode produksi
+    // Cek sesi Admin aktif saat mode produksi
     if (!IS_PREVIEW && supabase) {
       try {
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
           return enterApp({
             username: data.session.user.email,
-            fullName: 'Administrator',
+            fullName: data.session.user.user_metadata?.full_name || 'Administrator',
             role: 'admin',
             email: data.session.user.email
           });
-        }
-        const savedUser = localStorage.getItem('alfian_scan_user_session');
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          if (parsed?.username) {
-            return enterApp({ username: parsed.username, fullName: parsed.full_name, role: parsed.role || 'user' });
-          }
         }
       } catch (err) {
         console.warn('Cek sesi gagal:', err);
