@@ -516,34 +516,34 @@
 
             <!-- Kontrol Kamera & Impor (Tata Letak Ergonomis untuk HP & Desktop) -->
             <div class="camera-controls-bar px-3 py-3 sm:p-4 bg-slate-900 text-white space-y-2.5 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-3">
-              <!-- Baris Utama Kontrol Kamera (Kiri: Flash/Auto/Stop, Tengah: Shutter, Kanan: Impor cepat di desktop) -->
-              <div class="grid grid-cols-3 items-center gap-2 sm:flex sm:items-center sm:flex-1 sm:justify-between">
-                <div class="flex items-center gap-1.5 sm:gap-2">
-                  <button id="btn-toggle-torch" disabled class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold flex items-center gap-1.5" title="Flash / Torch">
+              <!-- Baris Utama Kontrol Kamera (Kiri: Flash/Auto/Suara/Stop, Tengah: Shutter, Kanan: Tutup Full) -->
+              <div class="flex items-center justify-between gap-2 sm:flex-1">
+                <div class="flex items-center gap-1 sm:gap-2">
+                  <button id="btn-toggle-torch" disabled class="p-2 sm:p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold flex items-center gap-1.5" title="Flash / Torch">
                     <i data-lucide="zap" class="w-4 h-4"></i>
                     <span class="hidden sm:inline">Flash</span>
                   </button>
-                  <button id="btn-toggle-autocapture" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Auto-Capture Stabil">
+                  <button id="btn-toggle-autocapture" class="p-2 sm:p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5" title="Auto-Capture Stabil">
                     <i data-lucide="focus" class="w-4 h-4"></i>
                     <span class="hidden sm:inline">Auto-Capture</span>
                   </button>
-                  <button id="btn-toggle-shutter-sound" type="button" class="p-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5" title="Suara Jepretan Kamera: Aktif">
+                  <button id="btn-toggle-shutter-sound" type="button" class="p-2 sm:p-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5" title="Suara Jepretan Kamera: Aktif">
                     <i data-lucide="volume-2" class="w-4 h-4"></i>
                   </button>
-                  <button id="btn-stop-camera" class="hidden p-2.5 rounded-xl bg-rose-600/85 hover:bg-rose-600 text-xs font-semibold" title="Tutup Kamera">
+                  <button id="btn-stop-camera" class="hidden p-2 sm:p-2.5 rounded-xl bg-rose-600/85 hover:bg-rose-600 text-xs font-semibold" title="Tutup Kamera">
                     <i data-lucide="video-off" class="w-4 h-4"></i>
                   </button>
                 </div>
 
-                <!-- Tombol Jepret Utama (Persis di Tengah di HP) -->
-                <div class="flex justify-center">
+                <!-- Tombol Jepret Utama -->
+                <div class="flex justify-center shrink-0">
                   <button id="btn-capture-photo" disabled class="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-white bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 flex items-center justify-center shadow-lg transition active:scale-95">
                     <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-emerald-200/70"></div>
                   </button>
                 </div>
 
-                <!-- Spacer kanan untuk menyeimbangkan grid 3 kolom di HP; disembunyikan di desktop -->
-                <div class="flex justify-end sm:hidden">
+                <!-- Spacer kanan untuk menyeimbangkan tata letak di HP; disembunyikan di desktop -->
+                <div class="flex justify-end sm:hidden min-w-[44px]">
                   <button id="btn-exit-camera-fs" type="button" class="hidden px-2.5 py-2 rounded-xl bg-slate-800 text-[11px] font-bold text-slate-200">
                     Tutup Full
                   </button>
@@ -955,6 +955,22 @@
               </button>
             </div>
 
+            <!-- Pemilih Model Gemini Terbaru / Preview -->
+            <div class="pt-3 border-t border-slate-200/70 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="text-xs">
+                <p class="font-bold text-slate-700 dark:text-slate-200">Model Gemini AI (Terbaru / Preview)</p>
+                <p id="gemini-model-status" class="text-[11px] text-slate-500">Otomatis mendeteksi model terbaru/preview yang aktif pada API Key Anda.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <select id="select-gemini-model" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold max-w-[220px]">
+                  <option value="auto">Auto (Terbaru / Preview)</option>
+                </select>
+                <button id="btn-refresh-models" type="button" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold shrink-0" title="Muat daftar model dari API Key">
+                  Muat Model
+                </button>
+              </div>
+            </div>
+
             <div id="apikey-list" class="space-y-2"></div>
           </div>
 
@@ -1170,6 +1186,8 @@
     apiKeys: [],
     apiKeyIndex: 0,
     workingGeminiModel: null,
+    selectedGeminiModel: localStorage.getItem('alfian_scan_gemini_model') || 'auto',
+    discoveredGeminiModels: [],
     deferredPwaPrompt: null,
     cropContext: null, // { img, corners: [{x,y}x4], onDone }
     activeOverlay: null, // { el, dataUrl }
@@ -2129,11 +2147,12 @@
     if (!video || !overlayCanvas) return;
 
     const sampleCanvas = document.createElement('canvas');
-    sampleCanvas.width = 160;
-    sampleCanvas.height = 160;
+    sampleCanvas.width = 200;
+    sampleCanvas.height = 200;
     const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+    let missedFrames = 0;
 
-    // Jalankan deteksi kontur tepi setiap ~160ms agar ringan di HP Android
+    // Jalankan deteksi kontur tepi setiap ~150ms agar responsif dan akurat di HP Android
     state.liveEdgeDetectTimer = setInterval(() => {
       if (!state.cameraStream || video.readyState < 2 || !video.videoWidth) return;
       if (state.scanMode === 'idcard') {
@@ -2147,16 +2166,47 @@
       const ch = overlayCanvas.clientHeight || video.clientHeight;
       if (!cw || !ch) return;
 
-      const aspectH = Math.max(96, Math.min(220, Math.round((ch / cw) * 160)));
+      const aspectH = Math.max(120, Math.min(260, Math.round((ch / cw) * 200)));
       if (sampleCanvas.height !== aspectH) sampleCanvas.height = aspectH;
 
       const rect = getVisibleVideoCropRect(video, cw, ch);
       const res = detectLiveVideoCorners(video, sampleCanvas, sampleCtx, rect);
-      state.liveTargetCorners = res.corners;
-      state.liveDocDetected = res.detected;
+
+      if (res.detected) {
+        missedFrames = 0;
+        // Redam lonjakan ekstrem 1 frame (outlier damping) agar garis hijau stabil menempel di buku/kertas
+        if (state.liveTargetCorners && state.liveDocDetected) {
+          let maxJump = 0;
+          for (let i = 0; i < 4; i++) {
+            maxJump = Math.max(maxJump, Math.hypot(
+              res.corners[i].x - state.liveTargetCorners[i].x,
+              res.corners[i].y - state.liveTargetCorners[i].y
+            ));
+          }
+          if (maxJump < 0.35) {
+            state.liveTargetCorners = res.corners;
+          } else {
+            // Campur perlahan jika kamera baru dipindahkan jauh
+            state.liveTargetCorners = state.liveTargetCorners.map((p, i) => ({
+              x: p.x * 0.45 + res.corners[i].x * 0.55,
+              y: p.y * 0.45 + res.corners[i].y * 0.55
+            }));
+          }
+        } else {
+          state.liveTargetCorners = res.corners;
+        }
+        state.liveDocDetected = true;
+      } else {
+        missedFrames++;
+        // Tahan posisi terkunci hingga 3 frame agar tidak berkedip saat ada bayangan sesaat
+        if (missedFrames >= 3) {
+          state.liveTargetCorners = res.corners;
+          state.liveDocDetected = false;
+        }
+      }
 
       if (liveDot && liveText) {
-        if (res.detected) {
+        if (state.liveDocDetected) {
           liveDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
           liveText.textContent = 'Tepi Kertas Terkunci — Siap Jepret';
         } else {
@@ -2164,7 +2214,7 @@
           liveText.textContent = 'Arahkan kamera ke tepi kertas...';
         }
       }
-    }, 160);
+    }, 150);
 
     // Loop animasi 60fps untuk menggerakkan garis & 4 sudut crop secara halus (LERP)
     const renderLoop = () => {
@@ -2645,30 +2695,102 @@
   }
 
   // =========================================================================
-  // 9. DETEKSI TEPI OTOMATIS (KONTUR TERBESAR + SOBEL CANVAS) & PELURUSAN PERSPEKTIF (BILINEAR + LOUPE)
+  // 9. DETEKSI TEPI OTOMATIS (WARNA + MORPHOLOGICAL OPENING + LINE FITTING 4 SISI) & PELURUSAN PERSPEKTIF
   // =========================================================================
+  function fitRobustEdgeLine(points, isHorizontal) {
+    if (!points || points.length < 4) return null;
+    // Persamaan garis:
+    // Horizontal (Atas/Bawah): y = m * x + b  ->  (-m)*x + 1*y = b
+    // Vertikal (Kiri/Kanan)  : x = m * y + b  ->  1*x + (-m)*y = b
+    let subset = points;
+    let m = 0, b = 0;
+
+    // 2 iterasi: iterasi ke-2 membuang outlier (misal pantulan cahaya/jari di sudut kertas)
+    for (let iter = 0; iter < 2; iter++) {
+      const n = subset.length;
+      if (n < 3) break;
+      let sumU = 0, sumV = 0, sumUU = 0, sumUV = 0;
+      for (let i = 0; i < n; i++) {
+        const u = isHorizontal ? subset[i].x : subset[i].y;
+        const v = isHorizontal ? subset[i].y : subset[i].x;
+        sumU += u; sumV += v; sumUU += u * u; sumUV += u * v;
+      }
+      const denom = n * sumUU - sumU * sumU;
+      if (Math.abs(denom) < 1e-6) {
+        m = 0;
+        b = sumV / n;
+      } else {
+        m = (n * sumUV - sumU * sumV) / denom;
+        b = (sumV - m * sumU) / n;
+      }
+
+      if (iter === 0 && n >= 8) {
+        const residuals = subset.map((pt) => {
+          const u = isHorizontal ? pt.x : pt.y;
+          const v = isHorizontal ? pt.y : pt.x;
+          return { pt, err: Math.abs(v - (m * u + b)) };
+        }).sort((a, b2) => a.err - b2.err);
+        const keepCount = Math.max(5, Math.floor(residuals.length * 0.72));
+        const maxAllowed = Math.max(2.2, residuals[keepCount - 1].err * 1.15);
+        subset = residuals.filter((r) => r.err <= maxAllowed).map((r) => r.pt);
+      }
+    }
+
+    return isHorizontal ? { A: -m, B: 1, C: b } : { A: 1, B: -m, C: b };
+  }
+
+  function intersectLines2D(L1, L2) {
+    if (!L1 || !L2) return null;
+    const det = L1.A * L2.B - L2.A * L1.B;
+    if (Math.abs(det) < 1e-5) return null;
+    return {
+      x: (L1.C * L2.B - L2.C * L1.B) / det,
+      y: (L1.A * L2.C - L2.A * L1.C) / det
+    };
+  }
+
+  function pointToSegmentDist(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq < 1e-6) return Math.hypot(px - ax, py - ay);
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  }
+
   function detectDocumentCornersFromImageData(data, sw, sh) {
-    // 1. Grayscale & statistik tepi latar (desk/meja)
+    // 1. Grayscale & statistik warna RGB tepi latar (meja/alas) agar akurat untuk kertas putih maupun sampul buku berwarna
     const gray = new Float32Array(sw * sh);
-    let borderSum = 0, borderSqSum = 0, borderCount = 0;
-    let centerSum = 0, centerCount = 0;
+    let bgR = 0, bgG = 0, bgB = 0, borderSum = 0, borderSqSum = 0, borderCount = 0;
+    let centerR = 0, centerG = 0, centerB = 0, centerSum = 0, centerCount = 0;
+
     for (let y = 0; y < sh; y++) {
       for (let x = 0; x < sw; x++) {
         const i = (y * sw + x) * 4;
-        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        gray[y * sw + x] = g;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        gray[y * sw + x] = lum;
         if (x < 6 || x >= sw - 6 || y < 6 || y >= sh - 6) {
-          borderSum += g;
-          borderSqSum += g * g;
+          bgR += r; bgG += g; bgB += b;
+          borderSum += lum;
+          borderSqSum += lum * lum;
           borderCount++;
-        } else if (x > sw * 0.25 && x < sw * 0.75 && y > sh * 0.25 && y < sh * 0.75) {
-          centerSum += g;
+        } else if (x > sw * 0.28 && x < sw * 0.72 && y > sh * 0.28 && y < sh * 0.72) {
+          centerR += r; centerG += g; centerB += b;
+          centerSum += lum;
           centerCount++;
         }
       }
     }
+
+    const meanBgR = borderCount > 0 ? bgR / borderCount : 90;
+    const meanBgG = borderCount > 0 ? bgG / borderCount : 90;
+    const meanBgB = borderCount > 0 ? bgB / borderCount : 90;
     const bgMean = borderCount > 0 ? borderSum / borderCount : 90;
     const bgStd = borderCount > 0 ? Math.sqrt(Math.max(0, borderSqSum / borderCount - bgMean * bgMean)) : 20;
+
+    const meanCenterR = centerCount > 0 ? centerR / centerCount : 180;
+    const meanCenterG = centerCount > 0 ? centerG / centerCount : 180;
+    const meanCenterB = centerCount > 0 ? centerB / centerCount : 180;
     const centerMean = centerCount > 0 ? centerSum / centerCount : 180;
     const docIsBrighter = centerMean >= bgMean;
 
@@ -2685,38 +2807,89 @@
       }
     }
 
-    // 3. Masker biner dokumen (memisahkan kertas dari latar meja + Sobel edge)
-    const contrastGap = Math.max(20, Math.min(46, bgStd * 1.3 + 15));
-    const mask = new Uint8Array(sw * sh);
+    // 3. Masker biner berbasis jarak warna RGB terhadap latar & pusat dokumen + Sobel edge
+    const contrastGap = Math.max(18, Math.min(44, bgStd * 1.2 + 14));
+    const colorGap = Math.max(30, Math.min(62, bgStd * 1.45 + 22));
+    const rawMask = new Uint8Array(sw * sh);
+
     for (let y = 2; y < sh - 2; y++) {
       for (let x = 2; x < sw - 2; x++) {
         const idx = y * sw + x;
+        const i = idx * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+
+        const distBg = Math.hypot(r - meanBgR, g - meanBgG, b - meanBgB);
+        const distCenter = Math.hypot(r - meanCenterR, g - meanCenterG, b - meanCenterB);
+        const diffFromBg = docIsBrighter ? (blur[idx] - bgMean) : (bgMean - blur[idx]);
+
         const gx = -blur[idx - sw - 1] + blur[idx - sw + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + sw - 1] + blur[idx + sw + 1];
         const gy = -blur[idx - sw - 1] - 2 * blur[idx - sw] - blur[idx - sw + 1] + blur[idx + sw - 1] + 2 * blur[idx + sw] + blur[idx + sw + 1];
         const mag = Math.hypot(gx, gy);
 
-        const diffFromBg = docIsBrighter ? (blur[idx] - bgMean) : (bgMean - blur[idx]);
-        if (diffFromBg > contrastGap || (mag > 48 && Math.abs(blur[idx] - bgMean) > 13)) {
+        // Piksel dianggap dokumen jika jauh dari warna latar DAN lebih dekat ke warna kertas/buku (mencegah benda asing/pantulan meja ikut menyatu)
+        const isDocColor = distBg > colorGap && distCenter < distBg * 1.15;
+        const isDocLum = diffFromBg > contrastGap && distCenter < distBg * 1.35;
+        if (isDocColor || isDocLum || (mag > 52 && distBg > colorGap * 0.7)) {
+          rawMask[idx] = 1;
+        }
+      }
+    }
+
+    // 4. Morphological Opening (Erosion 3x3 -> Dilation 3x3) untuk memutus jembatan pantulan cahaya di pojok kertas/buku
+    const eroded = new Uint8Array(sw * sh);
+    for (let y = 2; y < sh - 2; y++) {
+      for (let x = 2; x < sw - 2; x++) {
+        const idx = y * sw + x;
+        if (
+          rawMask[idx] &&
+          rawMask[idx - 1] && rawMask[idx + 1] &&
+          rawMask[idx - sw] && rawMask[idx + sw] &&
+          rawMask[idx - sw - 1] && rawMask[idx - sw + 1] &&
+          rawMask[idx + sw - 1] && rawMask[idx + sw + 1]
+        ) {
+          eroded[idx] = 1;
+        }
+      }
+    }
+    const mask = new Uint8Array(sw * sh);
+    for (let y = 2; y < sh - 2; y++) {
+      for (let x = 2; x < sw - 2; x++) {
+        const idx = y * sw + x;
+        if (
+          eroded[idx] ||
+          eroded[idx - 1] || eroded[idx + 1] ||
+          eroded[idx - sw] || eroded[idx + sw] ||
+          eroded[idx - sw - 1] || eroded[idx - sw + 1] ||
+          eroded[idx + sw - 1] || eroded[idx + sw + 1]
+        ) {
           mask[idx] = 1;
         }
       }
     }
 
-    // 4. Cari komponen terhubung terbesar (Largest Contour / Connected Component) agar kebal noise meja
+    // 5. Cari komponen terhubung terbesar (prioritaskan komponen yang menyentuh area tengah frame)
     const visited = new Uint8Array(sw * sh);
     const queue = new Int32Array(sw * sh);
+    let bestScore = 0;
     let bestSize = 0;
     let bestBounds = null;
+    let bestCompId = 0;
+    const compMap = new Int32Array(sw * sh);
+    let compId = 0;
+    const cxMid = sw * 0.5, cyMid = sh * 0.5;
 
     for (let y = 3; y < sh - 3; y++) {
       for (let x = 3; x < sw - 3; x++) {
         const startIdx = y * sw + x;
         if (!mask[startIdx] || visited[startIdx]) continue;
 
+        compId++;
         let head = 0, tail = 0;
         queue[tail++] = startIdx;
         visited[startIdx] = 1;
+        compMap[startIdx] = compId;
 
+        let sumX = 0, sumY = 0;
         let tl = { x: sw, y: sh, score: Infinity };
         let tr = { x: 0, y: sh, score: -Infinity };
         let br = { x: 0, y: 0, score: -Infinity };
@@ -2726,6 +2899,8 @@
           const cur = queue[head++];
           const cy = (cur / sw) | 0;
           const cx = cur - cy * sw;
+          sumX += cx;
+          sumY += cy;
 
           const sum = cx + cy;
           const diff = cx - cy;
@@ -2734,16 +2909,22 @@
           if (sum > br.score) br = { x: cx, y: cy, score: sum };
           if (diff < bl.score) bl = { x: cx, y: cy, score: diff };
 
-          // 4-tetangga
-          if (cx > 2) { const n = cur - 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-          if (cx < sw - 3) { const n = cur + 1; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-          if (cy > 2) { const n = cur - sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
-          if (cy < sh - 3) { const n = cur + sw; if (mask[n] && !visited[n]) { visited[n] = 1; queue[tail++] = n; } }
+          if (cx > 2) { const n = cur - 1; if (mask[n] && !visited[n]) { visited[n] = 1; compMap[n] = compId; queue[tail++] = n; } }
+          if (cx < sw - 3) { const n = cur + 1; if (mask[n] && !visited[n]) { visited[n] = 1; compMap[n] = compId; queue[tail++] = n; } }
+          if (cy > 2) { const n = cur - sw; if (mask[n] && !visited[n]) { visited[n] = 1; compMap[n] = compId; queue[tail++] = n; } }
+          if (cy < sh - 3) { const n = cur + sw; if (mask[n] && !visited[n]) { visited[n] = 1; compMap[n] = compId; queue[tail++] = n; } }
         }
 
-        if (tail > bestSize) {
+        const meanX = sumX / tail;
+        const meanY = sumY / tail;
+        const centerDistNorm = Math.hypot((meanX - cxMid) / sw, (meanY - cyMid) / sh);
+        const compScore = tail * Math.max(0.35, 1.25 - centerDistNorm);
+
+        if (compScore > bestScore) {
+          bestScore = compScore;
           bestSize = tail;
           bestBounds = [tl, tr, br, bl];
+          bestCompId = compId;
         }
       }
     }
@@ -2759,19 +2940,95 @@
       return { detected: false, corners: defaultQuad };
     }
 
-    const pts = bestBounds.map((pt) => ({
+    // 6. Kumpulkan piksel kontur tepi dari komponen terbaik & cocokkan 4 garis lurus (Top, Right, Bottom, Left)
+    const edges = [[], [], [], []]; // 0: Top, 1: Right, 2: Bottom, 3: Left
+    const rough = bestBounds;
+    const cornerExclRadius = Math.max(6, Math.min(sw, sh) * 0.06);
+
+    for (let y = 3; y < sh - 3; y++) {
+      for (let x = 3; x < sw - 3; x++) {
+        const idx = y * sw + x;
+        if (compMap[idx] !== bestCompId) continue;
+        // Cek apakah piksel berada di batas luar komponen
+        if (
+          compMap[idx - 1] === bestCompId &&
+          compMap[idx + 1] === bestCompId &&
+          compMap[idx - sw] === bestCompId &&
+          compMap[idx + sw] === bestCompId
+        ) continue;
+
+        // Abaikan piksel tepat di sudut ekstrem agar tonjolan/bayangan sudut tidak membelokkan garis tepi
+        let nearCorner = false;
+        for (let c = 0; c < 4; c++) {
+          if (Math.hypot(x - rough[c].x, y - rough[c].y) < cornerExclRadius) {
+            nearCorner = true;
+            break;
+          }
+        }
+        if (nearCorner) continue;
+
+        // Tentukan sisi terdekat (0=Top, 1=Right, 2=Bottom, 3=Left)
+        let bestSide = -1;
+        let minDist = Infinity;
+        for (let s = 0; s < 4; s++) {
+          const a = rough[s];
+          const b = rough[(s + 1) % 4];
+          const d = pointToSegmentDist(x, y, a.x, a.y, b.x, b.y);
+          if (d < minDist) {
+            minDist = d;
+            bestSide = s;
+          }
+        }
+        if (bestSide >= 0 && minDist < Math.max(10, Math.min(sw, sh) * 0.12)) {
+          edges[bestSide].push({ x, y });
+        }
+      }
+    }
+
+    const lineTop = fitRobustEdgeLine(edges[0], true);
+    const lineRight = fitRobustEdgeLine(edges[1], false);
+    const lineBottom = fitRobustEdgeLine(edges[2], true);
+    const lineLeft = fitRobustEdgeLine(edges[3], false);
+
+    let refinedPx = rough;
+    if (lineTop && lineRight && lineBottom && lineLeft) {
+      const pTL = intersectLines2D(lineTop, lineLeft);
+      const pTR = intersectLines2D(lineTop, lineRight);
+      const pBR = intersectLines2D(lineBottom, lineRight);
+      const pBL = intersectLines2D(lineBottom, lineLeft);
+      if (pTL && pTR && pBR && pBL) {
+        const candidates = [pTL, pTR, pBR, pBL];
+        const allValid = candidates.every((p) =>
+          Number.isFinite(p.x) && Number.isFinite(p.y) &&
+          p.x >= -sw * 0.08 && p.x <= sw * 1.08 &&
+          p.y >= -sh * 0.08 && p.y <= sh * 1.08
+        );
+        if (allValid) refinedPx = candidates;
+      }
+    }
+
+    const pts = refinedPx.map((pt) => ({
       x: Math.max(0.01, Math.min(0.99, pt.x / sw)),
       y: Math.max(0.01, Math.min(0.99, pt.y / sh))
     }));
 
-    // Validasi luas segiempat (Shoelace formula) — minimal 14% dan maksimal 96% luas frame
+    // Validasi urutan sudut (kiri < kanan, atas < bawah) dan luas segiempat (Shoelace formula)
+    if (
+      pts[1].x <= pts[0].x + 0.14 ||
+      pts[2].x <= pts[3].x + 0.14 ||
+      pts[3].y <= pts[0].y + 0.14 ||
+      pts[2].y <= pts[1].y + 0.14
+    ) {
+      return { detected: false, corners: defaultQuad };
+    }
+
     let area = 0;
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
       area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
     }
     area = Math.abs(area) * 0.5;
-    if (area < 0.14 || area > 0.96 || pts[1].x <= pts[0].x + 0.14 || pts[2].y <= pts[1].y + 0.14) {
+    if (area < 0.14 || area > 0.96) {
       return { detected: false, corners: defaultQuad };
     }
 
@@ -3739,22 +3996,99 @@
     }
   }
 
+  function scoreGeminiModelName(name) {
+    const n = String(name || '').toLowerCase();
+    // Abaikan model non-teks / embedding / audio-only / video / gambar murni
+    if (/(embedding|aqa|imagen|veo|tts|audio|live|robotics|learnlm|computer-use|deep-research)/i.test(n)) return -1;
+    let score = 0;
+    const verMatch = n.match(/gemini-(\d+)(?:\.(\d+))?/);
+    if (verMatch) {
+      score += Number(verMatch[1]) * 100 + Number(verMatch[2] || 0) * 10;
+    }
+    if (n.includes('flash')) score += 40;
+    else if (n.includes('pro')) score += 25;
+    if (n.includes('lite')) score -= 5;
+    if (n.includes('preview') || n.includes('exp')) score += 6;
+    if (n.includes('latest')) score += 12;
+    return score;
+  }
+
+  function renderGeminiModelDropdown() {
+    const sel = document.getElementById('select-gemini-model');
+    const statusEl = document.getElementById('gemini-model-status');
+    if (!sel) return;
+
+    const currentVal = state.selectedGeminiModel || 'auto';
+    const options = ['<option value="auto">Auto (Terbaru / Preview)</option>'];
+    const uniqueModels = Array.from(new Set(state.discoveredGeminiModels || []));
+    uniqueModels.forEach((m) => {
+      options.push(`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`);
+    });
+    if (currentVal !== 'auto' && !uniqueModels.includes(currentVal)) {
+      options.push(`<option value="${escapeHtml(currentVal)}">${escapeHtml(currentVal)}</option>`);
+    }
+    sel.innerHTML = options.join('');
+    sel.value = currentVal;
+
+    if (statusEl) {
+      if (state.workingGeminiModel) {
+        statusEl.textContent = `Model aktif terverifikasi: ${state.workingGeminiModel}`;
+      } else if (uniqueModels.length > 0) {
+        statusEl.textContent = `${uniqueModels.length} model tersedia dari API Key Anda (prioritas: ${uniqueModels[0]}).`;
+      } else {
+        statusEl.textContent = 'Otomatis mendeteksi model terbaru/preview yang aktif pada API Key Anda.';
+      }
+    }
+  }
+
+  async function discoverGeminiModels(apiKey, forceRefresh = false) {
+    if (!apiKey) return [];
+    if (!forceRefresh && state.discoveredGeminiModels.length > 0) {
+      return state.discoveredGeminiModels;
+    }
+
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
+    try {
+      const resp = await fetch(listUrl, { method: 'GET' });
+      if (!resp.ok) return [];
+      const json = await resp.json().catch(() => ({}));
+      const rawModels = Array.isArray(json?.models) ? json.models : [];
+
+      const valid = rawModels
+        .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+        .map((m) => String(m.name || '').replace(/^models\//, ''))
+        .filter((name) => name.startsWith('gemini-') && scoreGeminiModelName(name) >= 0)
+        .sort((a, b) => scoreGeminiModelName(b) - scoreGeminiModelName(a));
+
+      if (valid.length > 0) {
+        state.discoveredGeminiModels = Array.from(new Set(valid));
+        renderGeminiModelDropdown();
+      }
+      return state.discoveredGeminiModels;
+    } catch (err) {
+      console.warn('ListModels dilewati:', err);
+      return [];
+    }
+  }
+
   async function callGeminiWithRotation(promptText, imageBase64 = null) {
     if (!state.apiKeys || state.apiKeys.length === 0) {
       throw new Error('Gemini API Key belum diisi! Silakan tambahkan API Key di menu Pengaturan.');
     }
 
-    // Daftar model Gemini terbaru (otomatis fallback jika model lama tidak tersedia untuk akun baru)
-    const defaultModels = [
-      'gemini-3.0-flash',
+    // Fallback daftar model terbaru & preview apabila endpoint ListModels dibatasi
+    const fallbackModels = [
       'gemini-3.8-flash',
+      'gemini-3.5-flash-preview',
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-preview',
+      'gemini-3.0-flash',
       'gemini-3-flash-preview',
+      'gemini-2.5-flash-preview',
+      'gemini-2.5-flash',
       'gemini-2.5-flash-lite',
-      'gemini-2.5-flash'
+      'gemini-flash-latest'
     ];
-    const modelQueue = state.workingGeminiModel
-      ? [state.workingGeminiModel, ...defaultModels.filter((m) => m !== state.workingGeminiModel)]
-      : [...defaultModels];
 
     const totalKeys = state.apiKeys.length;
     let lastError = null;
@@ -3763,6 +4097,21 @@
       const idx = (state.apiKeyIndex + attempt) % totalKeys;
       const apiKey = state.apiKeys[idx].trim();
       if (!apiKey) continue;
+
+      // Temukan daftar model aktual yang tersedia untuk API Key ini (termasuk versi terbaru / preview)
+      const discovered = await discoverGeminiModels(apiKey, false);
+
+      const orderedModels = [];
+      if (state.selectedGeminiModel && state.selectedGeminiModel !== 'auto') {
+        orderedModels.push(state.selectedGeminiModel);
+      }
+      if (state.workingGeminiModel) {
+        orderedModels.push(state.workingGeminiModel);
+      }
+      discovered.forEach((m) => orderedModels.push(m));
+      fallbackModels.forEach((m) => orderedModels.push(m));
+
+      const modelQueue = Array.from(new Set(orderedModels));
 
       const parts = [{ text: promptText }];
       if (imageBase64) {
@@ -3786,10 +4135,7 @@
         try {
           const resp = await fetch(url, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts }] })
           });
 
@@ -3799,22 +4145,35 @@
           if (resp.ok) {
             state.workingGeminiModel = modelName;
             state.apiKeyIndex = (idx + 1) % totalKeys; // Rotasi otomatis
+            renderGeminiModelDropdown();
             const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
             if (!text) throw new Error('Respon kosong dari Gemini AI.');
             return text;
           }
 
-          // Jika limit/kuota habis atau key ditolak -> langsung pindah ke API key berikutnya
-          if (resp.status === 429 || resp.status === 401 || resp.status === 403) {
+          // Jika API Key tidak valid / tidak berizin (401/403) -> langsung pindah ke API key berikutnya
+          if (resp.status === 401 || (resp.status === 403 && /api key|permission|unregistered/i.test(apiErrMsg))) {
             lastError = new Error(`API Key #${idx + 1} (${resp.status}): ${apiErrMsg}`);
             break;
           }
 
-          // Jika model sudah tidak tersedia / 404 -> ekstrak rekomendasi model dari pesan Google jika ada, lalu coba model berikutnya
-          if (resp.status === 404 || /no longer available|not found|not supported|update your code to use/i.test(apiErrMsg)) {
-            const suggestedMatch = apiErrMsg.match(/use\s+models\/([a-zA-Z0-9._-]+)/i);
-            if (suggestedMatch && suggestedMatch[1] && !triedModels.has(suggestedMatch[1])) {
-              modelQueue.splice(queueIndex, 0, suggestedMatch[1]);
+          // Jika limit kuota pada model tertentu (429) -> coba model lain jika masih ada, lalu pindah key
+          if (resp.status === 429) {
+            lastError = new Error(`API Key #${idx + 1} limit pada ${modelName}: ${apiErrMsg}`);
+            if (triedModels.size >= 3) break;
+            continue;
+          }
+
+          // Jika model lama/preview tidak tersedia -> ekstrak saran model dari pesan Google jika ada, lalu lanjut model berikutnya
+          if (resp.status === 404 || resp.status === 400 || /no longer available|not found|not supported|deprecated|update your code/i.test(apiErrMsg)) {
+            const suggestedMatch = apiErrMsg.match(/models\/([a-zA-Z0-9._-]+)/gi);
+            if (suggestedMatch) {
+              suggestedMatch.forEach((rawM) => {
+                const cleanM = rawM.replace(/^models\//i, '');
+                if (cleanM && cleanM !== modelName && !triedModels.has(cleanM)) {
+                  modelQueue.splice(queueIndex, 0, cleanM);
+                }
+              });
             }
             lastError = new Error(apiErrMsg);
             continue;
@@ -3927,6 +4286,7 @@
       }
     }
     renderApiKeyList();
+    renderGeminiModelDropdown();
   }
 
   async function persistApiKeys() {
@@ -4332,6 +4692,27 @@
     document.getElementById('btn-export-excel').onclick = exportResultToExcel;
 
     // Settings
+    document.getElementById('select-gemini-model').onchange = (e) => {
+      state.selectedGeminiModel = e.target.value || 'auto';
+      localStorage.setItem('alfian_scan_gemini_model', state.selectedGeminiModel);
+      if (state.selectedGeminiModel !== 'auto') {
+        state.workingGeminiModel = state.selectedGeminiModel;
+      } else {
+        state.workingGeminiModel = null;
+      }
+      renderGeminiModelDropdown();
+      showToast(`Model Gemini diatur ke: ${state.selectedGeminiModel}`, 'info');
+    };
+    document.getElementById('btn-refresh-models').onclick = async () => {
+      if (!state.apiKeys.length) return showToast('Tambahkan API Key Gemini terlebih dahulu.', 'warning');
+      showToast('Mengambil daftar model terbaru/preview dari Google...', 'info');
+      const models = await discoverGeminiModels(state.apiKeys[0].trim(), true);
+      if (models.length > 0) {
+        showToast(`Ditemukan ${models.length} model aktif (terbaru: ${models[0]}).`, 'success');
+      } else {
+        showToast('Daftar model tidak dapat diambil otomatis; sistem tetap akan mencoba model terbaru saat uji koneksi.', 'warning');
+      }
+    };
     document.getElementById('btn-add-apikey').onclick = () => {
       const inp = document.getElementById('input-new-apikey');
       const val = inp.value.trim();
@@ -4342,13 +4723,18 @@
       }
       state.apiKeys.push(val);
       state.workingGeminiModel = null;
+      state.discoveredGeminiModels = [];
       inp.value = '';
       persistApiKeys();
+      discoverGeminiModels(val, true);
       showToast('Gemini API Key berhasil ditambahkan!', 'success');
     };
     document.getElementById('btn-test-gemini').onclick = async () => {
       try {
-        showToast('Menguji koneksi Gemini AI...', 'info');
+        showToast('Mendeteksi model terbaru & menguji koneksi Gemini AI...', 'info');
+        if (state.apiKeys.length > 0) {
+          await discoverGeminiModels(state.apiKeys[0].trim(), true);
+        }
         const res = await callGeminiWithRotation('Balas dengan satu kata: OK');
         const modelInfo = state.workingGeminiModel ? ` (${state.workingGeminiModel})` : '';
         showToast(`Koneksi Gemini AI Berhasil${modelInfo}: ${res.slice(0, 20)}`, 'success');
