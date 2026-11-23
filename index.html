@@ -89,7 +89,7 @@
       display: flex;
     }
     .main-content-area {
-      padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px)) !important;
     }
     @media (min-width: 768px) {
       .desktop-sidebar {
@@ -99,7 +99,7 @@
         display: none;
       }
       .main-content-area {
-        padding-bottom: 28px;
+        padding-bottom: 32px !important;
       }
     }
 
@@ -358,7 +358,7 @@
       </header>
 
       <!-- Kontainer Scrollable untuk Semua View -->
-      <main class="flex-1 overflow-y-auto px-3 py-3 sm:p-6 main-content-area">
+      <main class="flex-1 overflow-y-auto px-3 pt-3 sm:px-6 sm:pt-6 main-content-area">
 
         <!-- ==================== VIEW 1: BERANDA / DOKUMEN SAYA ==================== -->
         <section id="view-home" class="app-view space-y-5 max-w-6xl mx-auto">
@@ -457,6 +457,8 @@
           <div id="camera-card-container" class="glass-card rounded-2xl sm:rounded-3xl overflow-hidden relative bg-slate-950">
             <div class="camera-viewport-box relative aspect-[4/5] sm:aspect-video max-h-[58dvh] sm:max-h-[62vh] w-full bg-slate-950 flex items-center justify-center overflow-hidden">
               <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+              <!-- Efek Kilat Rana Kamera saat Berhasil Terfoto -->
+              <div id="camera-shutter-flash" class="hidden absolute inset-0 bg-white pointer-events-none z-30 transition-opacity duration-150 opacity-0"></div>
 
               <!-- Placeholder saat kamera belum aktif -->
               <div id="camera-placeholder" class="text-center p-6 text-slate-300 max-w-sm">
@@ -1694,18 +1696,32 @@
     });
 
     grid.querySelectorAll('[data-del-doc]').forEach((el) => {
-      el.addEventListener('click', async () => {
+      el.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const ok = await showConfirm('Hapus Dokumen', 'Dokumen dan seluruh halamannya akan dihapus dari perangkat. Lanjutkan?');
         if (!ok) return;
         const id = el.dataset.delDoc;
-        await idbDeleteDoc(id);
-        if (!IS_PREVIEW && supabase) {
-          await supabase.from('scan_documents').delete().eq('local_doc_id', id).catch(() => {});
+        try {
+          await idbDeleteDoc(id);
+          if (!IS_PREVIEW && supabase) {
+            try {
+              await supabase.from('scan_documents').delete().eq('local_doc_id', id);
+            } catch (cloudErr) {
+              console.warn('Hapus metadata cloud dilewati:', cloudErr);
+            }
+          }
+          state.documents = state.documents.filter((d) => d.id !== id);
+          if (state.activeDocId === id) {
+            state.activeDocId = state.documents[0]?.id || null;
+            state.activePageIndex = 0;
+          }
+          renderDocumentsGrid();
+          renderScanFilmstrip();
+          updateHeaderActiveDoc();
+          showToast('Dokumen berhasil dihapus.', 'success');
+        } catch (err) {
+          showToast('Gagal menghapus dokumen: ' + (err?.message || 'Error penyimpanan'), 'error');
         }
-        state.documents = state.documents.filter((d) => d.id !== id);
-        if (state.activeDocId === id) state.activeDocId = state.documents[0]?.id || null;
-        renderDocumentsGrid();
-        showToast('Dokumen dihapus.', 'info');
       });
     });
 
@@ -2178,38 +2194,17 @@
           ctx.moveTo(screenPts[0].x, screenPts[0].y);
           for (let i = 1; i < 4; i++) ctx.lineTo(screenPts[i].x, screenPts[i].y);
           ctx.closePath();
-
-          ctx.fillStyle = state.liveDocDetected ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.05)';
+          ctx.fillStyle = state.liveDocDetected ? 'rgba(16, 185, 129, 0.16)' : 'rgba(245, 158, 11, 0.08)';
           ctx.fill();
-
-          ctx.save();
-          if (!state.liveDocDetected) ctx.setLineDash([8, 6]);
-          ctx.strokeStyle = state.liveDocDetected ? '#10b981' : 'rgba(52, 211, 153, 0.85)';
-          ctx.lineWidth = state.liveDocDetected ? 2.8 : 2;
-          ctx.lineJoin = 'round';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = state.liveDocDetected ? '#10b981' : 'rgba(251, 191, 36, 0.85)';
           ctx.stroke();
-          ctx.restore();
 
-          // Garis belah tengah dinamis untuk Mode Buku
-          if (state.scanMode === 'book') {
-            const topMid = { x: (screenPts[0].x + screenPts[1].x) / 2, y: (screenPts[0].y + screenPts[1].y) / 2 };
-            const botMid = { x: (screenPts[3].x + screenPts[2].x) / 2, y: (screenPts[3].y + screenPts[2].y) / 2 };
-            ctx.save();
-            ctx.setLineDash([6, 5]);
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(topMid.x, topMid.y);
-            ctx.lineTo(botMid.x, botMid.y);
-            ctx.stroke();
-            ctx.restore();
-          }
-
-          // Gambar 4 titik sudut seperti handle crop yang bergerak mengikuti tepi kertas
+          // Gambar 4 titik sudut bundar agar terlihat seperti crop aktif
           screenPts.forEach((pt) => {
             ctx.beginPath();
-            ctx.arc(pt.x, pt.y, state.liveDocDetected ? 8 : 6.5, 0, Math.PI * 2);
-            ctx.fillStyle = state.liveDocDetected ? 'rgba(16, 185, 129, 0.95)' : 'rgba(52, 211, 153, 0.75)';
+            ctx.arc(pt.x, pt.y, 7.5, 0, Math.PI * 2);
+            ctx.fillStyle = state.liveDocDetected ? '#10b981' : '#f59e0b';
             ctx.fill();
             ctx.lineWidth = 2.5;
             ctx.strokeStyle = '#ffffff';
@@ -2219,7 +2214,6 @@
       }
       state.liveEdgeRafId = requestAnimationFrame(renderLoop);
     };
-
     state.liveEdgeRafId = requestAnimationFrame(renderLoop);
   }
 
@@ -2238,9 +2232,73 @@
     const overlayCanvas = document.getElementById('camera-live-edge-canvas');
     if (overlayCanvas) {
       const ctx = overlayCanvas.getContext('2d');
-      ctx?.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     }
     document.getElementById('live-edge-badge')?.classList.add('hidden');
+  }
+
+  let shutterAudioCtx = null;
+  function playShutterSound() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!shutterAudioCtx) shutterAudioCtx = new AudioCtx();
+      if (shutterAudioCtx.state === 'suspended') shutterAudioCtx.resume();
+
+      const now = shutterAudioCtx.currentTime;
+      // Suara rana kamera (filtered noise burst + klik mekanis halus)
+      const bufferSize = Math.floor(shutterAudioCtx.sampleRate * 0.065);
+      const buffer = shutterAudioCtx.createBuffer(1, bufferSize, shutterAudioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        const env = Math.exp(-i / (bufferSize * 0.22));
+        data[i] = (Math.random() * 2 - 1) * env;
+      }
+
+      const noise = shutterAudioCtx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = shutterAudioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1850, now);
+      filter.Q.setValueAtTime(1.2, now);
+
+      const gain = shutterAudioCtx.createGain();
+      gain.gain.setValueAtTime(0.7, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(shutterAudioCtx.destination);
+      noise.start(now);
+
+      const osc = shutterAudioCtx.createOscillator();
+      const oscGain = shutterAudioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(240, now + 0.015);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
+      oscGain.gain.setValueAtTime(0.3, now + 0.015);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+      osc.connect(oscGain);
+      oscGain.connect(shutterAudioCtx.destination);
+      osc.start(now + 0.015);
+      osc.stop(now + 0.07);
+    } catch (e) {
+      console.warn('Shutter sound dilewati:', e);
+    }
+  }
+
+  function triggerShutterFeedback() {
+    playShutterSound();
+    const flash = document.getElementById('camera-shutter-flash');
+    if (flash) {
+      flash.classList.remove('hidden');
+      flash.style.opacity = '0.85';
+      setTimeout(() => {
+        flash.style.opacity = '0';
+        setTimeout(() => flash.classList.add('hidden'), 150);
+      }, 60);
+    }
   }
 
   function captureFromCamera() {
@@ -2250,6 +2308,7 @@
     c.width = video.videoWidth;
     c.height = video.videoHeight;
     c.getContext('2d').drawImage(video, 0, 0);
+    triggerShutterFeedback();
     const liveCorners = (state.liveDocDetected && state.liveSmoothCorners)
       ? state.liveSmoothCorners.map((p) => ({ x: p.x, y: p.y }))
       : null;
@@ -3756,12 +3815,16 @@
   async function persistApiKeys() {
     localStorage.setItem('alfian_scan_gemini_keys', JSON.stringify(state.apiKeys));
     if (!IS_PREVIEW && supabase) {
-      await supabase.from('app_settings').upsert({
-        setting_key: 'gemini_api_keys',
-        setting_value: state.apiKeys,
-        updated_by: state.currentUser?.username || 'admin',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'setting_key' }).catch(() => {});
+      try {
+        await supabase.from('app_settings').upsert({
+          setting_key: 'gemini_api_keys',
+          setting_value: state.apiKeys,
+          updated_by: state.currentUser?.username || 'admin',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'setting_key' });
+      } catch (err) {
+        console.warn('Simpan API key ke cloud dilewati:', err);
+      }
     }
     renderApiKeyList();
     renderDocumentsGrid();
