@@ -35,8 +35,8 @@
       }
     };
   </script>
-
-  <!-- Pustaka Eksternal CDN: jsPDF, PDF.js, Tesseract.js, SheetJS, Lucide Icons -->
+  <!-- Pustaka Eksternal CDN: Supabase JS, jsPDF, PDF.js, Tesseract.js, SheetJS, Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -943,8 +943,6 @@
 
 <!-- ==================== LOGIKA APLIKASI UTAMA (ES MODULE) ==================== -->
 <script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
   // =========================================================================
   // 1. KONFIGURASI APLIKASI (SAKLAR PREVIEW vs PRODUKSI SUPABASE)
   // =========================================================================
@@ -952,9 +950,51 @@
   const SUPABASE_URL = "https://vtbgzmwnkxcwvntjdezu.supabase.co;
   const SUPABASE_ANON_KEY = "sb_publishable_edmA7f8ApIRTTJcospzWBw_f_-AeSxl";
 
-  const supabase = (!IS_PREVIEW && SUPABASE_URL !== 'URL_SUPABASE_ANDA' && SUPABASE_ANON_KEY !== 'ANON_KEY_ANDA')
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
+  let supabase = null;
+  let supabaseInitError = '';
+
+  function safeCreateIcons() {
+    try {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    } catch (e) {
+      console.warn('Lucide icons warning:', e);
+    }
+  }
+
+  async function initSupabaseClient() {
+    if (IS_PREVIEW) return null;
+    if (supabase) return supabase;
+
+    const cleanUrl = String(SUPABASE_URL || '').trim();
+    const cleanKey = String(SUPABASE_ANON_KEY || '').trim();
+
+    if (!cleanUrl || !cleanKey || cleanUrl === 'URL_SUPABASE_ANDA' || cleanKey === 'ANON_KEY_ANDA') {
+      supabaseInitError = 'SUPABASE_URL atau SUPABASE_ANON_KEY belum diisi dengan kredensial proyek Supabase Anda.';
+      return null;
+    }
+
+    if (!/^https?:\/\//i.test(cleanUrl)) {
+      supabaseInitError = 'Format SUPABASE_URL tidak valid (harus diawali https://).';
+      return null;
+    }
+
+    try {
+      let createClientFn = window.supabase?.createClient;
+      if (!createClientFn) {
+        const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        createClientFn = mod.createClient;
+      }
+      supabase = createClientFn(cleanUrl, cleanKey);
+      supabaseInitError = '';
+      return supabase;
+    } catch (err) {
+      supabaseInitError = 'Gagal memuat SDK Supabase: ' + (err?.message || 'Periksa koneksi internet Anda.');
+      console.error(supabaseInitError, err);
+      return null;
+    }
+  }
 
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -999,7 +1039,11 @@
     grad.addColorStop(1, '#047857');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.roundRect(0, 0, size, size, size * 0.22);
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(0, 0, size, size, size * 0.22);
+    } else {
+      ctx.rect(0, 0, size, size);
+    }
     ctx.fill();
 
     // Bingkai scan
@@ -1258,21 +1302,23 @@
       return;
     }
 
-    if (!supabase || SUPABASE_URL === 'URL_SUPABASE_ANDA' || SUPABASE_ANON_KEY === 'ANON_KEY_ANDA') {
-      const msg = 'SUPABASE_URL atau SUPABASE_ANON_KEY belum diisi dengan kredensial proyek Supabase Anda.';
-      showLoginError(msg);
-      return showToast(msg, 'error');
-    }
-
     const btn = document.getElementById('btn-login-submit');
     btn.disabled = true;
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const client = await initSupabaseClient();
+      if (!client) {
+        const msg = supabaseInitError || 'Koneksi Supabase belum siap. Periksa SUPABASE_URL dan SUPABASE_ANON_KEY.';
+        showLoginError(msg);
+        showToast(msg, 'error');
+        return;
+      }
+
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw error;
       if (!data?.user) throw new Error('Data pengguna tidak ditemukan dari Supabase Auth.');
 
-      enterApp({
+      await enterApp({
         username: data.user.email,
         fullName: data.user.user_metadata?.full_name || 'Administrator',
         role: 'admin',
@@ -1284,6 +1330,8 @@
         errMsg = 'Email atau password salah. Pastikan akun Admin sudah dibuat di Supabase Authentication → Users.';
       } else if (/Email not confirmed/i.test(errMsg)) {
         errMsg = 'Email belum dikonfirmasi. Aktifkan "Auto Confirm User" saat membuat akun di Dashboard Supabase.';
+      } else if (/Failed to fetch|NetworkError/i.test(errMsg)) {
+        errMsg = 'Tidak dapat terhubung ke server Supabase. Periksa koneksi internet atau URL proyek Supabase Anda.';
       }
       showLoginError(errMsg);
       showToast(errMsg, 'error');
@@ -1466,7 +1514,7 @@
           <p class="text-sm font-bold text-slate-600 dark:text-slate-300">Belum ada dokumen</p>
           <p class="text-xs text-slate-400 mt-1">Klik "Scan Baru" atau "Proyek Baru" untuk mulai memindai.</p>
         </div>`;
-      lucide.createIcons();
+      safeCreateIcons();
       return;
     }
 
@@ -1523,7 +1571,7 @@
       });
     });
 
-    lucide.createIcons();
+    safeCreateIcons();
   }
 
   // =========================================================================
@@ -3129,21 +3177,24 @@
     if (localStorage.getItem('alfian_scan_theme') === 'dark') {
       document.documentElement.classList.add('dark');
     }
-    initPWA();
     bindEvents();
-    lucide.createIcons();
+    initPWA();
+    safeCreateIcons();
 
     // Cek sesi Admin aktif saat mode produksi
-    if (!IS_PREVIEW && supabase) {
+    if (!IS_PREVIEW) {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session?.user) {
-          return enterApp({
-            username: data.session.user.email,
-            fullName: data.session.user.user_metadata?.full_name || 'Administrator',
-            role: 'admin',
-            email: data.session.user.email
-          });
+        const client = await initSupabaseClient();
+        if (client) {
+          const { data } = await client.auth.getSession();
+          if (data?.session?.user) {
+            return enterApp({
+              username: data.session.user.email,
+              fullName: data.session.user.user_metadata?.full_name || 'Administrator',
+              role: 'admin',
+              email: data.session.user.email
+            });
+          }
         }
       } catch (err) {
         console.warn('Cek sesi gagal:', err);
@@ -3151,7 +3202,11 @@
     }
   }
 
-  bootstrap();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
 </script>
 </body>
 </html>
