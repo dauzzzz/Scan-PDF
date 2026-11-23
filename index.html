@@ -135,6 +135,22 @@
       background: #047857;
     }
 
+    /* Kaca Pembesar (Loupe) untuk Presisi Crop 4 Titik */
+    #crop-loupe {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 116px;
+      height: 116px;
+      border-radius: 9999px;
+      border: 3px solid #10b981;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.55);
+      pointer-events: none;
+      z-index: 40;
+      background: #0f172a;
+      overflow: hidden;
+    }
+
     /* Draggable Signature/Stamp Overlay */
     .doc-overlay-item {
       position: absolute;
@@ -376,10 +392,16 @@
                 <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
                 Pilih Mode Pemindaian
               </h3>
-              <label class="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer">
-                <input id="toggle-batch-scan" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500" />
-                <span>Mode Multi-Halaman (Scan Terus Tanpa Batas)</span>
-              </label>
+              <div class="flex flex-wrap items-center gap-3">
+                <label class="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                  <input id="toggle-auto-crop" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500" />
+                  <span>Auto-Crop & Luruskan Otomatis</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                  <input id="toggle-batch-scan" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500" />
+                  <span>Mode Multi-Halaman</span>
+                </label>
+              </div>
             </div>
             <div class="grid grid-cols-3 gap-2">
               <button data-scan-mode="document" class="scan-mode-btn p-3 rounded-xl border-2 text-left transition border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/50">
@@ -540,6 +562,9 @@
                 <div class="flex items-center justify-between mb-2">
                   <span id="editor-page-indicator" class="text-xs font-bold text-slate-500">Halaman 0 / 0</span>
                   <div class="flex items-center gap-1.5">
+                    <button id="btn-auto-crop-page" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1 hover:bg-emerald-100" title="Deteksi tepi & luruskan perspektif otomatis">
+                      <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Auto-Crop
+                    </button>
                     <button id="btn-open-cropper" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold flex items-center gap-1 hover:text-emerald-600">
                       <i data-lucide="crop" class="w-3.5 h-3.5"></i> Crop 4 Titik
                     </button>
@@ -688,18 +713,56 @@
                 <div>
                   <label class="block text-xs font-bold mb-1">Ukuran Kertas PDF</label>
                   <select id="export-paper-size" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
-                    <option value="a4">A4 (210 × 297 mm)</option>
+                    <option value="autofit">Auto / Original (Sesuai Rasio Hasil Crop)</option>
+                    <option value="a4" selected>A4 (210 × 297 mm)</option>
                     <option value="f4">F4 / Folio (215 × 330 mm)</option>
                     <option value="letter">Letter (216 × 279 mm)</option>
-                    <option value="autofit">Auto-Fit (Sesuai Rasio Gambar)</option>
                   </select>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold mb-1">Orientasi Kertas</label>
+                    <select id="export-orientation" class="w-full px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                      <option value="auto" selected>Auto (Portrait/Landscape)</option>
+                      <option value="portrait">Portrait (Tegak)</option>
+                      <option value="landscape">Landscape (Mendatar)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold mb-1">Mode Penyesuaian</label>
+                    <select id="export-fit-mode" class="w-full px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                      <option value="contain" selected>Fit to Page (Proporsional)</option>
+                      <option value="cover">Fill Page (Penuh)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-bold mb-1">Margin (Center-Aligned)</label>
+                    <select id="export-margin" class="w-full px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                      <option value="0">Tanpa Margin (0 mm)</option>
+                      <option value="5" selected>Tipis (5 mm)</option>
+                      <option value="10">Standar (10 mm)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold mb-1">Cakupan Kertas</label>
+                    <select id="export-page-scope" class="w-full px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                      <option value="all" selected>Semua Halaman (Apply All)</option>
+                      <option value="current">Hanya Halaman Aktif</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/60">
+                  <span id="export-scope-info" class="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">Pengaturan berlaku ke semua halaman PDF.</span>
+                  <button id="btn-apply-paper-all" type="button" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0">Terapkan Semua</button>
+                </div>
                 <div>
-                  <label class="block text-xs font-bold mb-1">Kompresi Kualitas Gambar</label>
+                  <label class="block text-xs font-bold mb-1">Kompresi Kualitas Gambar (DPI)</label>
                   <select id="export-quality" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
-                    <option value="0.45">Rendah / Ukuran Kecil (Hemat Kuota)</option>
-                    <option value="0.72" selected>Sedang / Seimbang (Direkomendasikan)</option>
-                    <option value="0.92">Tinggi / Tajam (Arsip Cetak)</option>
+                    <option value="0.55">Rendah / Ukuran Kecil (Hemat Kuota)</option>
+                    <option value="0.78" selected>Sedang / Tajam & Efisien (Direkomendasikan)</option>
+                    <option value="0.93">Tinggi / Ultra Tajam (Arsip Cetak)</option>
                   </select>
                 </div>
                 <div>
@@ -863,7 +926,7 @@
     <div class="flex flex-wrap items-center justify-between gap-2 text-white mb-3">
       <div>
         <h3 class="text-sm font-extrabold">Deteksi Tepi & Pelurusan Perspektif</h3>
-        <p class="text-[11px] text-slate-300">Geser 4 titik hijau ke sudut kertas untuk meluruskan dokumen.</p>
+        <p class="text-[11px] text-slate-300">Geser 4 titik hijau ke sudut kertas — kaca pembesar aktif otomatis saat menyeret.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button id="btn-crop-auto" class="px-3 py-1.5 rounded-lg bg-slate-800 text-emerald-400 text-xs font-bold">Auto-Detect</button>
@@ -873,6 +936,8 @@
       </div>
     </div>
     <div id="crop-stage" class="flex-1 flex items-center justify-center relative overflow-hidden">
+      <!-- Kaca Pembesar (Loupe) Presisi Tinggi -->
+      <canvas id="crop-loupe" width="116" height="116" class="hidden"></canvas>
       <div id="crop-container" class="relative inline-block select-none">
         <canvas id="crop-canvas" class="max-w-[90vw] max-h-[75vh] block rounded-lg"></canvas>
         <svg id="crop-polygon-svg" class="absolute inset-0 w-full h-full pointer-events-none">
@@ -1011,6 +1076,7 @@
     activePageIndex: 0,
     scanMode: 'document', // 'document' | 'idcard' | 'book'
     idCardFrontDataUrl: null,
+    autoCropEnabled: true, // Deteksi tepi & pelurusan perspektif otomatis
     batchMode: true, // Default aktif agar bisa menambah halaman scan tak terbatas secara langsung
     batchCount: 0,
     cameraStream: null,
@@ -1395,6 +1461,7 @@
 
     if (viewName === 'scan') renderScanFilmstrip();
     if (viewName === 'editor') renderEditorView();
+    if (viewName === 'ai') syncExportSettingsUI();
     if (viewName === 'home') renderDocumentsGrid();
     updateHeaderActiveDoc();
   }
@@ -1795,13 +1862,14 @@
 
     // MODE ID CARD / KTP (Depan + Belakang -> 1 Halaman A4)
     if (state.scanMode === 'idcard') {
+      const processedCardUrl = state.autoCropEnabled ? await autoCropAndDewarp(dataUrl) : dataUrl;
       if (!state.idCardFrontDataUrl) {
-        state.idCardFrontDataUrl = dataUrl;
+        state.idCardFrontDataUrl = processedCardUrl;
         document.getElementById('idcard-step-text').textContent = 'Langkah 2/2 — Tampak Depan tersimpan! Sekarang foto/unggah Tampak Belakang.';
         showToast('Tampak Depan tersimpan. Lanjut Tampak Belakang.', 'success');
         return;
       } else {
-        const mergedA4 = await combineIdCardToA4(state.idCardFrontDataUrl, dataUrl);
+        const mergedA4 = await combineIdCardToA4(state.idCardFrontDataUrl, processedCardUrl);
         state.idCardFrontDataUrl = null;
         document.getElementById('idcard-step-text').textContent = 'Langkah 1/2 — Foto atau unggah Tampak Depan kartu.';
         await addPageToActiveDoc(mergedA4);
@@ -1813,7 +1881,8 @@
 
     // MODE BUKU (Belah 2 halaman kiri & kanan otomatis)
     if (state.scanMode === 'book') {
-      const [leftUrl, rightUrl] = await splitBookPages(dataUrl);
+      const baseBookUrl = state.autoCropEnabled ? await autoCropAndDewarp(dataUrl) : dataUrl;
+      const [leftUrl, rightUrl] = await splitBookPages(baseBookUrl);
       await addPageToActiveDoc(leftUrl);
       await addPageToActiveDoc(rightUrl);
       showToast('Mode Buku: 2 halaman (Kiri & Kanan) berhasil dipisahkan!', 'success');
@@ -1823,12 +1892,18 @@
 
     // MODE DOKUMEN STANDAR
     if (state.batchMode) {
-      await addPageToActiveDoc(dataUrl);
+      const finalUrl = state.autoCropEnabled ? await autoCropAndDewarp(dataUrl) : dataUrl;
+      await addPageToActiveDoc(finalUrl);
       const total = getActiveDoc()?.pages.length || 0;
       state.batchCount = total;
       document.getElementById('batch-count-badge').textContent = total;
       document.getElementById('btn-finish-batch').classList.remove('hidden');
-      showToast(`Halaman #${total} ditambahkan! Lanjut scan halaman berikutnya atau klik Selesai.`, 'success');
+      showToast(
+        state.autoCropEnabled
+          ? `Halaman #${total} otomatis di-crop & diluruskan!`
+          : `Halaman #${total} ditambahkan! Lanjut scan atau klik Selesai.`,
+        'success'
+      );
     } else {
       openPerspectiveCropper(dataUrl, async (warpedUrl, continueScanning) => {
         await addPageToActiveDoc(warpedUrl);
@@ -1931,45 +2006,233 @@
   }
 
   // =========================================================================
-  // 9. DETEKSI TEPI OTOMATIS & PELURUSAN PERSPEKTIF (HOMOGRAPHY CANVAS)
+  // 9. DETEKSI TEPI OTOMATIS (SOBEL/KONTUR CANVAS) & PELURUSAN PERSPEKTIF (BILINEAR + LOUPE)
   // =========================================================================
   function detectDocumentCorners(img) {
-    const sw = 160;
-    const sh = Math.round((img.height / img.width) * sw);
+    const sw = 220;
+    const sh = Math.max(80, Math.round((img.height / img.width) * sw));
     const c = document.createElement('canvas');
     c.width = sw; c.height = sh;
-    const ctx = c.getContext('2d');
+    const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, sw, sh);
     const data = ctx.getImageData(0, 0, sw, sh).data;
 
-    let minX = sw * 0.08, maxX = sw * 0.92, minY = sh * 0.08, maxY = sh * 0.92;
-    let foundMinX = sw, foundMaxX = 0, foundMinY = sh, foundMaxY = 0;
-    let brightPixels = 0;
+    // 1. Konversi ke Grayscale & hitung rata-rata tepi luar (latar meja)
+    const gray = new Float32Array(sw * sh);
+    let borderSum = 0, borderCount = 0;
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        const i = (y * sw + x) * 4;
+        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        gray[y * sw + x] = g;
+        if (x < 6 || x >= sw - 6 || y < 6 || y >= sh - 6) {
+          borderSum += g;
+          borderCount++;
+        }
+      }
+    }
+    const bgMean = borderCount > 0 ? borderSum / borderCount : 90;
+
+    // 2. Gaussian Blur ringan 3x3 untuk meredam noise
+    const blur = new Float32Array(sw * sh);
+    for (let y = 1; y < sh - 1; y++) {
+      for (let x = 1; x < sw - 1; x++) {
+        const idx = y * sw + x;
+        blur[idx] = (
+          gray[idx - sw - 1] + 2 * gray[idx - sw] + gray[idx - sw + 1] +
+          2 * gray[idx - 1] + 4 * gray[idx] + 2 * gray[idx + 1] +
+          gray[idx + sw - 1] + 2 * gray[idx + sw] + gray[idx + sw + 1]
+        ) / 16;
+      }
+    }
+
+    // 3. Sobel Edge Gradient + Masker Kertas (kontras terhadap latar tepi)
+    const paperThreshold = Math.max(bgMean + 24, 130);
+    let tl = { x: sw, y: sh, score: Infinity };
+    let tr = { x: 0, y: sh, score: -Infinity };
+    let br = { x: 0, y: 0, score: -Infinity };
+    let bl = { x: sw, y: 0, score: Infinity };
+    let candidateCount = 0;
 
     for (let y = 4; y < sh - 4; y++) {
       for (let x = 4; x < sw - 4; x++) {
-        const idx = (y * sw + x) * 4;
-        const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-        if (lum > 155) {
-          brightPixels++;
-          if (x < foundMinX) foundMinX = x;
-          if (x > foundMaxX) foundMaxX = x;
-          if (y < foundMinY) foundMinY = y;
-          if (y > foundMaxY) foundMaxY = y;
+        const idx = y * sw + x;
+        const gx = -blur[idx - sw - 1] + blur[idx - sw + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + sw - 1] + blur[idx + sw + 1];
+        const gy = -blur[idx - sw - 1] - 2 * blur[idx - sw] - blur[idx - sw + 1] + blur[idx + sw - 1] + 2 * blur[idx + sw] + blur[idx + sw + 1];
+        const mag = Math.hypot(gx, gy);
+
+        const isPaperEdge = (mag > 48 && blur[idx] > bgMean + 12) || (blur[idx] > paperThreshold && Math.abs(blur[idx] - bgMean) > 32);
+        if (isPaperEdge) {
+          candidateCount++;
+          const sum = x + y;
+          const diff = x - y;
+          if (sum < tl.score) tl = { x, y, score: sum };
+          if (diff > tr.score) tr = { x, y, score: diff };
+          if (sum > br.score) br = { x, y, score: sum };
+          if (diff < bl.score) bl = { x, y, score: diff };
         }
       }
     }
 
-    if (brightPixels > sw * sh * 0.15 && (foundMaxX - foundMinX) > sw * 0.3 && (foundMaxY - foundMinY) > sh * 0.3) {
-      minX = foundMinX; maxX = foundMaxX; minY = foundMinY; maxY = foundMaxY;
+    // Validasi bentuk segiempat agar tidak terlalu kecil atau rusak
+    const defaultQuad = [
+      { x: 0.05, y: 0.05 },
+      { x: 0.95, y: 0.05 },
+      { x: 0.95, y: 0.95 },
+      { x: 0.05, y: 0.95 }
+    ];
+
+    if (candidateCount < sw * sh * 0.04) return defaultQuad;
+
+    const pts = [
+      { x: tl.x / sw, y: tl.y / sh },
+      { x: tr.x / sw, y: tr.y / sh },
+      { x: br.x / sw, y: br.y / sh },
+      { x: bl.x / sw, y: bl.y / sh }
+    ];
+
+    // Hitung luas poligon (Shoelace formula) — harus minimal 18% dari frame
+    let area = 0;
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4;
+      area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    area = Math.abs(area) * 0.5;
+    if (area < 0.18 || pts[1].x <= pts[0].x + 0.15 || pts[2].y <= pts[1].y + 0.15) {
+      return defaultQuad;
     }
 
-    return [
-      { x: minX / sw, y: minY / sh },
-      { x: maxX / sw, y: minY / sh },
-      { x: maxX / sw, y: maxY / sh },
-      { x: minX / sw, y: maxY / sh }
-    ];
+    return pts;
+  }
+
+  // Pelurusan Perspektif Berkualitas Tinggi (Homografi + Bilinear Interpolation)
+  function warpImageWithCorners(img, corners) {
+    const srcPts = corners.map((p) => ({ x: p.x * img.width, y: p.y * img.height }));
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    let outW = Math.round(Math.max(dist(srcPts[0], srcPts[1]), dist(srcPts[3], srcPts[2])));
+    let outH = Math.round(Math.max(dist(srcPts[0], srcPts[3]), dist(srcPts[1], srcPts[2])));
+    const maxDim = 1600;
+    if (Math.max(outW, outH) > maxDim) {
+      const r = maxDim / Math.max(outW, outH);
+      outW = Math.round(outW * r);
+      outH = Math.round(outH * r);
+    }
+    outW = Math.max(120, outW);
+    outH = Math.max(120, outH);
+
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = img.width; srcCanvas.height = img.height;
+    const sctx = srcCanvas.getContext('2d', { willReadFrequently: true });
+    sctx.drawImage(img, 0, 0);
+    const srcData = sctx.getImageData(0, 0, img.width, img.height);
+
+    const dstCanvas = document.createElement('canvas');
+    dstCanvas.width = outW; dstCanvas.height = outH;
+    const dctx = dstCanvas.getContext('2d');
+    const dstData = dctx.createImageData(outW, outH);
+
+    const dstPts = [{ x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }];
+    const H = solveHomography(srcPts, dstPts);
+
+    const sw = img.width, sh = img.height;
+    const sBuf = srcData.data, dBuf = dstData.data;
+
+    for (let y = 0; y < outH; y++) {
+      for (let x = 0; x < outW; x++) {
+        const denom = H[6] * x + H[7] * y + H[8];
+        const sx = (H[0] * x + H[1] * y + H[2]) / denom;
+        const sy = (H[3] * x + H[4] * y + H[5]) / denom;
+        const di = (y * outW + x) * 4;
+
+        const x0 = Math.floor(sx), y0 = Math.floor(sy);
+        if (x0 >= 0 && x0 < sw - 1 && y0 >= 0 && y0 < sh - 1) {
+          const dx = sx - x0, dy = sy - y0;
+          const w00 = (1 - dx) * (1 - dy);
+          const w10 = dx * (1 - dy);
+          const w01 = (1 - dx) * dy;
+          const w11 = dx * dy;
+
+          const i00 = (y0 * sw + x0) * 4;
+          const i10 = i00 + 4;
+          const i01 = i00 + sw * 4;
+          const i11 = i01 + 4;
+
+          dBuf[di] = sBuf[i00] * w00 + sBuf[i10] * w10 + sBuf[i01] * w01 + sBuf[i11] * w11;
+          dBuf[di + 1] = sBuf[i00 + 1] * w00 + sBuf[i10 + 1] * w10 + sBuf[i01 + 1] * w01 + sBuf[i11 + 1] * w11;
+          dBuf[di + 2] = sBuf[i00 + 2] * w00 + sBuf[i10 + 2] * w10 + sBuf[i01 + 2] * w01 + sBuf[i11 + 2] * w11;
+          dBuf[di + 3] = 255;
+        } else if (x0 >= 0 && x0 < sw && y0 >= 0 && y0 < sh) {
+          const si = (y0 * sw + x0) * 4;
+          dBuf[di] = sBuf[si];
+          dBuf[di + 1] = sBuf[si + 1];
+          dBuf[di + 2] = sBuf[si + 2];
+          dBuf[di + 3] = 255;
+        } else {
+          dBuf[di] = dBuf[di + 1] = dBuf[di + 2] = 255;
+          dBuf[di + 3] = 255;
+        }
+      }
+    }
+    dctx.putImageData(dstData, 0, 0);
+    return dstCanvas.toDataURL('image/jpeg', 0.9);
+  }
+
+  // Auto-Crop & Perspective Correction otomatis untuk kamera & galeri
+  async function autoCropAndDewarp(dataUrl) {
+    try {
+      const img = await loadImageObj(dataUrl);
+      const corners = detectDocumentCorners(img);
+      return warpImageWithCorners(img, corners);
+    } catch (err) {
+      console.warn('Auto-crop dilewati:', err);
+      return dataUrl;
+    }
+  }
+
+  // Render Kaca Pembesar (Loupe) saat menyeret sudut crop manual
+  function renderCropLoupe(nx, ny, clientX) {
+    const loupe = document.getElementById('crop-loupe');
+    if (!loupe || !state.cropContext) return;
+    loupe.classList.remove('hidden');
+
+    // Pindahkan posisi loupe ke sisi berlawanan agar tidak tertutup jari
+    const stageRect = document.getElementById('crop-stage').getBoundingClientRect();
+    if (clientX - stageRect.left < stageRect.width * 0.45) {
+      loupe.style.left = 'auto';
+      loupe.style.right = '12px';
+    } else {
+      loupe.style.right = 'auto';
+      loupe.style.left = '12px';
+    }
+
+    const { img } = state.cropContext;
+    const ctx = loupe.getContext('2d');
+    const size = loupe.width;
+    const zoom = 2.8;
+    const srcW = size / zoom;
+    const srcH = size / zoom;
+    const cx = nx * img.width;
+    const cy = ny * img.height;
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(img, cx - srcW / 2, cy - srcH / 2, srcW, srcH, 0, 0, size, size);
+
+    // Garis bidik (crosshair) di tengah kaca pembesar
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.95)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(size / 2, 0); ctx.lineTo(size / 2, size);
+    ctx.moveTo(0, size / 2); ctx.lineTo(size, size / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function hideCropLoupe() {
+    document.getElementById('crop-loupe')?.classList.add('hidden');
   }
 
   async function openPerspectiveCropper(dataUrl, onDone, showScanNext = false) {
@@ -1987,6 +2250,7 @@
     const corners = detectDocumentCorners(img);
     state.cropContext = { img, corners, onDone };
     document.getElementById('btn-crop-apply-next').classList.toggle('hidden', !showScanNext);
+    hideCropLoupe();
     modal.classList.remove('hidden');
     requestAnimationFrame(() => updateCropHandlesUI());
   }
@@ -2019,6 +2283,7 @@
       const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
       state.cropContext.corners[draggingIdx] = { x: nx, y: ny };
       updateCropHandlesUI();
+      renderCropLoupe(nx, ny, clientX);
     };
 
     for (let i = 0; i < 4; i++) {
@@ -2027,9 +2292,18 @@
         e.preventDefault();
         draggingIdx = i;
         h.setPointerCapture(e.pointerId);
+        const pt = state.cropContext?.corners[i];
+        if (pt) renderCropLoupe(pt.x, pt.y, e.clientX);
       });
       h.addEventListener('pointermove', (e) => onMove(e.clientX, e.clientY));
-      h.addEventListener('pointerup', () => { draggingIdx = -1; });
+      h.addEventListener('pointerup', () => {
+        draggingIdx = -1;
+        hideCropLoupe();
+      });
+      h.addEventListener('pointercancel', () => {
+        draggingIdx = -1;
+        hideCropLoupe();
+      });
     }
   }
 
@@ -2067,88 +2341,47 @@
   function applyPerspectiveWarp(continueScanning = false) {
     if (!state.cropContext) return;
     const { img, corners, onDone } = state.cropContext;
-    const srcPts = corners.map((p) => ({ x: p.x * img.width, y: p.y * img.height }));
-
-    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-    let outW = Math.round(Math.max(dist(srcPts[0], srcPts[1]), dist(srcPts[3], srcPts[2])));
-    let outH = Math.round(Math.max(dist(srcPts[0], srcPts[3]), dist(srcPts[1], srcPts[2])));
-    const maxDim = 1400;
-    if (Math.max(outW, outH) > maxDim) {
-      const r = maxDim / Math.max(outW, outH);
-      outW = Math.round(outW * r);
-      outH = Math.round(outH * r);
-    }
-    outW = Math.max(100, outW);
-    outH = Math.max(100, outH);
-
-    const srcCanvas = document.createElement('canvas');
-    srcCanvas.width = img.width; srcCanvas.height = img.height;
-    const sctx = srcCanvas.getContext('2d');
-    sctx.drawImage(img, 0, 0);
-    const srcData = sctx.getImageData(0, 0, img.width, img.height);
-
-    const dstCanvas = document.createElement('canvas');
-    dstCanvas.width = outW; dstCanvas.height = outH;
-    const dctx = dstCanvas.getContext('2d');
-    const dstData = dctx.createImageData(outW, outH);
-
-    const dstPts = [{ x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }];
-    const H = solveHomography(srcPts, dstPts);
-
-    const sw = img.width, sh = img.height;
-    const sBuf = srcData.data, dBuf = dstData.data;
-
-    for (let y = 0; y < outH; y++) {
-      for (let x = 0; x < outW; x++) {
-        const denom = H[6] * x + H[7] * y + H[8];
-        const sx = Math.round((H[0] * x + H[1] * y + H[2]) / denom);
-        const sy = Math.round((H[3] * x + H[4] * y + H[5]) / denom);
-        const di = (y * outW + x) * 4;
-        if (sx >= 0 && sx < sw && sy >= 0 && sy < sh) {
-          const si = (sy * sw + sx) * 4;
-          dBuf[di] = sBuf[si];
-          dBuf[di + 1] = sBuf[si + 1];
-          dBuf[di + 2] = sBuf[si + 2];
-          dBuf[di + 3] = 255;
-        } else {
-          dBuf[di] = dBuf[di + 1] = dBuf[di + 2] = 255;
-          dBuf[di + 3] = 255;
-        }
-      }
-    }
-    dctx.putImageData(dstData, 0, 0);
+    const resultUrl = warpImageWithCorners(img, corners);
+    hideCropLoupe();
     document.getElementById('modal-cropper').classList.add('hidden');
-    const resultUrl = dstCanvas.toDataURL('image/jpeg', 0.88);
     state.cropContext = null;
     onDone(resultUrl, continueScanning);
   }
 
   // =========================================================================
-  // 10. EDITOR GAMBAR (FILTER, SLIDERS, ROTATE, MANAJEMEN HALAMAN DRAG-DROP)
+  // 10. EDITOR GAMBAR (FILTER REAL-TIME, SLIDER, ROTATE) & MANAJEMEN HALAMAN
   // =========================================================================
-  async function renderEditorView() {
+  function renderEditorView() {
     const doc = getActiveDoc();
     const titleInp = document.getElementById('editor-doc-title');
-    const emptyEl = document.getElementById('editor-empty-state');
-    const wrapEl = document.getElementById('editor-canvas-wrapper');
     const indicator = document.getElementById('editor-page-indicator');
+    const emptyState = document.getElementById('editor-empty-state');
+    const wrapper = document.getElementById('editor-canvas-wrapper');
 
-    if (!doc || doc.pages.length === 0) {
-      titleInp.value = doc ? doc.title : '';
+    if (!doc) {
+      titleInp.value = '';
       indicator.textContent = 'Halaman 0 / 0';
-      emptyEl.classList.remove('hidden');
-      wrapEl.classList.add('hidden');
-      document.getElementById('pages-grid').innerHTML = `<p class="col-span-full text-xs text-slate-400 italic">Belum ada halaman. Klik "Tambah Halaman" untuk memindai.</p>`;
+      emptyState.classList.remove('hidden');
+      wrapper.classList.add('hidden');
+      document.getElementById('pages-grid').innerHTML = '';
       return;
     }
 
     titleInp.value = doc.title;
+    if (doc.pages.length === 0) {
+      indicator.textContent = 'Halaman 0 / 0';
+      emptyState.classList.remove('hidden');
+      wrapper.classList.add('hidden');
+      document.getElementById('pages-grid').innerHTML = '';
+      return;
+    }
+
     state.activePageIndex = Math.max(0, Math.min(state.activePageIndex, doc.pages.length - 1));
     const page = doc.pages[state.activePageIndex];
-    indicator.textContent = `Halaman ${state.activePageIndex + 1} / ${doc.pages.length}`;
 
-    emptyEl.classList.add('hidden');
-    wrapEl.classList.remove('hidden');
+    indicator.textContent = `Halaman ${state.activePageIndex + 1} / ${doc.pages.length}`;
+    emptyState.classList.add('hidden');
+    wrapper.classList.remove('hidden');
 
     // Sinkronkan tombol filter & slider
     document.querySelectorAll('.filter-btn').forEach((btn) => {
@@ -2160,80 +2393,48 @@
       btn.classList.toggle('dark:border-slate-700', !active);
     });
 
-    document.getElementById('slider-brightness').value = page.brightness || 0;
-    document.getElementById('val-brightness').textContent = page.brightness || 0;
-    document.getElementById('slider-contrast').value = page.contrast || 0;
-    document.getElementById('val-contrast').textContent = page.contrast || 0;
-    document.getElementById('slider-sharpness').value = page.sharpness || 0;
-    document.getElementById('val-sharpness').textContent = page.sharpness || 0;
+    ['brightness', 'contrast', 'sharpness'].forEach((prop) => {
+      const val = page[prop] || 0;
+      document.getElementById(`slider-${prop}`).value = val;
+      document.getElementById(`val-${prop}`).textContent = val;
+    });
 
-    // Gambar pratinjau halaman aktif
-    const img = await loadImageObj(page.processedDataUrl);
+    drawActivePageToPreview(page.processedDataUrl);
+    renderPagesGrid();
+  }
+
+  async function drawActivePageToPreview(dataUrl) {
     const canvas = document.getElementById('editor-preview-canvas');
+    if (!canvas || !dataUrl) return;
+    const img = await loadImageObj(dataUrl);
     canvas.width = img.width;
     canvas.height = img.height;
     canvas.getContext('2d').drawImage(img, 0, 0);
-
-    renderPagesGrid(doc);
   }
 
-  function renderPagesGrid(doc) {
-    const grid = document.getElementById('pages-grid');
-    grid.innerHTML = doc.pages.map((pg, idx) => `
-      <div draggable="true" data-page-idx="${idx}"
-        class="page-thumb-card relative rounded-xl overflow-hidden border-2 transition cursor-pointer bg-slate-100 dark:bg-slate-800 ${idx === state.activePageIndex ? 'border-emerald-500 ring-2 ring-emerald-500/30' : 'border-slate-200 dark:border-slate-700'}">
-        <img src="${pg.processedDataUrl}" class="w-full h-24 object-cover" alt="Hal ${idx + 1}" />
-        <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">${idx + 1}</span>
-        <div class="flex items-center justify-between bg-white/90 dark:bg-slate-900/90 px-1 py-0.5 text-[10px]">
-          <button type="button" data-move-up="${idx}" class="px-1 font-bold hover:text-emerald-600 disabled:opacity-30" ${idx === 0 ? 'disabled' : ''}>&larr;</button>
-          <button type="button" data-move-down="${idx}" class="px-1 font-bold hover:text-emerald-600 disabled:opacity-30" ${idx === doc.pages.length - 1 ? 'disabled' : ''}>&rarr;</button>
-        </div>
-      </div>
-    `).join('');
+  function applySharpenConvolution(imageData, amount) {
+    if (amount <= 0) return imageData;
+    const w = imageData.width;
+    const h = imageData.height;
+    const src = imageData.data;
+    const out = new Uint8ClampedArray(src);
+    const k = (amount / 100) * 1.4;
 
-    let dragSrcIdx = -1;
-    grid.querySelectorAll('.page-thumb-card').forEach((card) => {
-      const idx = Number(card.dataset.pageIdx);
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
-        state.activePageIndex = idx;
-        renderEditorView();
-      });
-      card.addEventListener('dragstart', () => { dragSrcIdx = idx; card.classList.add('opacity-50'); });
-      card.addEventListener('dragend', () => { card.classList.remove('opacity-50'); });
-      card.addEventListener('dragover', (e) => e.preventDefault());
-      card.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        if (dragSrcIdx < 0 || dragSrcIdx === idx) return;
-        const [moved] = doc.pages.splice(dragSrcIdx, 1);
-        doc.pages.splice(idx, 0, moved);
-        state.activePageIndex = idx;
-        await saveActiveDoc();
-        renderEditorView();
-      });
-    });
-
-    grid.querySelectorAll('[data-move-up]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const i = Number(btn.dataset.moveUp);
-        if (i <= 0) return;
-        [doc.pages[i - 1], doc.pages[i]] = [doc.pages[i], doc.pages[i - 1]];
-        state.activePageIndex = i - 1;
-        await saveActiveDoc();
-        renderEditorView();
-      });
-    });
-
-    grid.querySelectorAll('[data-move-down]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const i = Number(btn.dataset.moveDown);
-        if (i >= doc.pages.length - 1) return;
-        [doc.pages[i + 1], doc.pages[i]] = [doc.pages[i], doc.pages[i + 1]];
-        state.activePageIndex = i + 1;
-        await saveActiveDoc();
-        renderEditorView();
-      });
-    });
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        for (let c = 0; c < 3; c++) {
+          const center = src[i + c];
+          const neighbors = (
+            src[i - 4 + c] + src[i + 4 + c] +
+            src[i - w * 4 + c] + src[i + w * 4 + c]
+          ) * 0.25;
+          out[i + c] = Math.max(0, Math.min(255, center + (center - neighbors) * k * 2.2));
+        }
+      }
+    }
+    imageData.data.set(out);
+    return imageData;
   }
 
   async function reprocessActivePage() {
@@ -2243,11 +2444,11 @@
 
     const img = await loadImageObj(page.originalDataUrl);
     const rot = (page.rotation || 0) % 360;
-    const swap = rot === 90 || rot === 270;
+    const isSwapped = rot === 90 || rot === 270;
 
     const c = document.createElement('canvas');
-    c.width = swap ? img.height : img.width;
-    c.height = swap ? img.width : img.height;
+    c.width = isSwapped ? img.height : img.width;
+    c.height = isSwapped ? img.width : img.height;
     const ctx = c.getContext('2d', { willReadFrequently: true });
 
     ctx.save();
@@ -2256,166 +2457,253 @@
     ctx.drawImage(img, -img.width / 2, -img.height / 2);
     ctx.restore();
 
-    const imgData = ctx.getImageData(0, 0, c.width, c.height);
-    const d = imgData.data;
     const filter = page.filter || 'original';
-    const brightness = page.brightness || 0;
-    const contrast = page.contrast || 0;
-    const cFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    const bright = Number(page.brightness || 0);
+    const cont = Number(page.contrast || 0);
+    const sharp = Number(page.sharpness || 0);
 
-    // Adaptive shadow threshold (Integral Image untuk kecepatan tinggi)
-    let integral = null;
-    if (filter === 'shadow') {
-      const w = c.width, h = c.height;
-      integral = new Float64Array(w * h);
-      for (let y = 0; y < h; y++) {
-        let rowSum = 0;
-        for (let x = 0; x < w; x++) {
-          const i = (y * w + x) * 4;
-          const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          rowSum += g;
-          integral[y * w + x] = rowSum + (y > 0 ? integral[(y - 1) * w + x] : 0);
-        }
-      }
-      const rad = Math.max(8, Math.round(Math.min(w, h) * 0.025));
-      for (let y = 0; y < h; y++) {
-        const y1 = Math.max(0, y - rad), y2 = Math.min(h - 1, y + rad);
-        for (let x = 0; x < w; x++) {
-          const x1 = Math.max(0, x - rad), x2 = Math.min(w - 1, x + rad);
-          const count = (x2 - x1 + 1) * (y2 - y1 + 1);
-          const sum = integral[y2 * w + x2]
-            - (y1 > 0 ? integral[(y1 - 1) * w + x2] : 0)
-            - (x1 > 0 ? integral[y2 * w + (x1 - 1)] : 0)
-            + (y1 > 0 && x1 > 0 ? integral[(y1 - 1) * w + (x1 - 1)] : 0);
-          const localMean = sum / count;
-          const i = (y * w + x) * 4;
-          const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          const val = g < localMean * 0.88 ? Math.max(0, g * 0.45) : 255;
-          d[i] = d[i + 1] = d[i + 2] = val;
-        }
-      }
-    } else {
-      for (let i = 0; i < d.length; i += 4) {
-        let r = d[i], g = d[i + 1], b = d[i + 2];
-        if (filter === 'magic') {
-          r = Math.min(255, Math.max(0, (r - 128) * 1.38 + 148));
-          g = Math.min(255, Math.max(0, (g - 128) * 1.38 + 148));
-          b = Math.min(255, Math.max(0, (b - 128) * 1.38 + 148));
-        } else if (filter === 'grayscale') {
-          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          r = g = b = gray;
-        } else if (filter === 'bw') {
-          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          const bw = gray > 135 ? 255 : 0;
-          r = g = b = bw;
-        }
+    if (filter !== 'original' || bright !== 0 || cont !== 0 || sharp !== 0) {
+      const imgData = ctx.getImageData(0, 0, c.width, c.height);
+      const d = imgData.data;
+      const contrastFactor = (259 * (cont + 255)) / (255 * (259 - cont));
 
-        if (brightness !== 0 || contrast !== 0) {
-          r = cFactor * (r + brightness - 128) + 128;
-          g = cFactor * (g + brightness - 128) + 128;
-          b = cFactor * (b + brightness - 128) + 128;
+      // Jika mode Hapus Bayangan (Adaptive Thresholding), hitung rata-rata blok lokal
+      let localMean = null;
+      if (filter === 'shadow') {
+        const w = c.width, h = c.height;
+        const integral = new Float64Array((w + 1) * (h + 1));
+        for (let y = 0; y < h; y++) {
+          let rowSum = 0;
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const g = 0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2];
+            rowSum += g;
+            integral[(y + 1) * (w + 1) + (x + 1)] = integral[y * (w + 1) + (x + 1)] + rowSum;
+          }
         }
-        d[i] = Math.min(255, Math.max(0, r));
-        d[i + 1] = Math.min(255, Math.max(0, g));
-        d[i + 2] = Math.min(255, Math.max(0, b));
-      }
-    }
-
-    // Sharpness (Unsharp Mask ringan jika > 0)
-    const sharp = (page.sharpness || 0) / 100;
-    if (sharp > 0) {
-      const copy = new Uint8ClampedArray(d);
-      const w = c.width, h = c.height;
-      const amt = sharp * 1.2;
-      for (let y = 1; y < h - 1; y++) {
-        for (let x = 1; x < w - 1; x++) {
-          const i = (y * w + x) * 4;
-          for (let ch = 0; ch < 3; ch++) {
-            const center = copy[i + ch];
-            const neighbors = (copy[i - 4 + ch] + copy[i + 4 + ch] + copy[i - w * 4 + ch] + copy[i + w * 4 + ch]) * 0.25;
-            d[i + ch] = Math.min(255, Math.max(0, center + (center - neighbors) * amt));
+        const rad = Math.max(12, Math.round(Math.min(w, h) * 0.025));
+        localMean = new Uint8Array(w * h);
+        for (let y = 0; y < h; y++) {
+          const y1 = Math.max(0, y - rad), y2 = Math.min(h - 1, y + rad);
+          for (let x = 0; x < w; x++) {
+            const x1 = Math.max(0, x - rad), x2 = Math.min(w - 1, x + rad);
+            const area = (x2 - x1 + 1) * (y2 - y1 + 1);
+            const sum = integral[(y2 + 1) * (w + 1) + (x2 + 1)] - integral[y1 * (w + 1) + (x2 + 1)]
+              - integral[(y2 + 1) * (w + 1) + x1] + integral[y1 * (w + 1) + x1];
+            localMean[y * w + x] = sum / area;
           }
         }
       }
+
+      for (let p = 0, i = 0; i < d.length; i += 4, p++) {
+        let r = d[i], g = d[i + 1], b = d[i + 2];
+
+        // Brightness & Contrast manual
+        if (bright !== 0) {
+          r += bright; g += bright; b += bright;
+        }
+        if (cont !== 0) {
+          r = contrastFactor * (r - 128) + 128;
+          g = contrastFactor * (g - 128) + 128;
+          b = contrastFactor * (b - 128) + 128;
+        }
+
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        if (filter === 'magic') {
+          // Memutihkan latar kertas dan mempertajam tinta berwarna
+          const boost = lum > 165 ? 1.35 : 0.88;
+          r = (r - 128) * 1.28 + 128 + (lum > 155 ? 38 : -10);
+          g = (g - 128) * 1.28 + 128 + (lum > 155 ? 38 : -10);
+          b = (b - 128) * 1.28 + 128 + (lum > 155 ? 38 : -10);
+          if (lum > 185) { r *= boost; g *= boost; b *= boost; }
+        } else if (filter === 'grayscale') {
+          r = g = b = lum;
+        } else if (filter === 'bw') {
+          const v = lum > 142 ? 255 : 0;
+          r = g = b = v;
+        } else if (filter === 'shadow' && localMean) {
+          const diff = lum - localMean[p];
+          if (diff < -10) {
+            const dark = Math.max(0, Math.min(255, lum * 0.72));
+            r = g = b = dark;
+          } else {
+            r = g = b = 255;
+          }
+        }
+
+        d[i] = Math.max(0, Math.min(255, r));
+        d[i + 1] = Math.max(0, Math.min(255, g));
+        d[i + 2] = Math.max(0, Math.min(255, b));
+      }
+
+      if (sharp > 0) applySharpenConvolution(imgData, sharp);
+      ctx.putImageData(imgData, 0, 0);
     }
 
-    ctx.putImageData(imgData, 0, 0);
-    page.processedDataUrl = c.toDataURL('image/jpeg', 0.88);
-    await saveActiveDoc();
-    renderEditorView();
+    page.processedDataUrl = c.toDataURL('image/jpeg', 0.9);
+    await drawActivePageToPreview(page.processedDataUrl);
+    await saveActiveDoc(false);
+    renderPagesGrid();
+  }
+
+  function renderPagesGrid() {
+    const grid = document.getElementById('pages-grid');
+    const doc = getActiveDoc();
+    if (!grid || !doc) return;
+
+    grid.innerHTML = doc.pages.map((pg, idx) => `
+      <div draggable="true" data-page-idx="${idx}"
+        class="page-grid-item relative rounded-xl overflow-hidden border-2 transition cursor-pointer bg-slate-100 dark:bg-slate-800 ${idx === state.activePageIndex ? 'border-emerald-500 ring-2 ring-emerald-400/40' : 'border-slate-200 dark:border-slate-700'}">
+        <div class="aspect-[3/4] overflow-hidden" data-select-page="${idx}">
+          <img src="${pg.processedDataUrl}" class="w-full h-full object-cover" alt="Halaman ${idx + 1}" />
+        </div>
+        <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">${idx + 1}</span>
+        <div class="flex items-center justify-between bg-white/95 dark:bg-slate-900/95 px-1 py-1 border-t border-slate-200 dark:border-slate-700">
+          <button type="button" data-move-prev="${idx}" ${idx === 0 ? 'disabled' : ''} class="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 text-[10px] font-bold" title="Geser Kiri/Naik">&larr;</button>
+          <button type="button" data-move-next="${idx}" ${idx === doc.pages.length - 1 ? 'disabled' : ''} class="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 text-[10px] font-bold" title="Geser Kanan/Turun">&rarr;</button>
+        </div>
+      </div>
+    `).join('');
+
+    let dragFromIdx = -1;
+    grid.querySelectorAll('.page-grid-item').forEach((card) => {
+      card.addEventListener('dragstart', () => {
+        dragFromIdx = Number(card.dataset.pageIdx);
+      });
+      card.addEventListener('dragover', (e) => e.preventDefault());
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const toIdx = Number(card.dataset.pageIdx);
+        if (dragFromIdx < 0 || dragFromIdx === toIdx) return;
+        const [moved] = doc.pages.splice(dragFromIdx, 1);
+        doc.pages.splice(toIdx, 0, moved);
+        state.activePageIndex = toIdx;
+        await saveActiveDoc();
+        renderEditorView();
+      });
+    });
+
+    grid.querySelectorAll('[data-select-page]').forEach((el) => {
+      el.addEventListener('click', () => {
+        state.activePageIndex = Number(el.dataset.selectPage);
+        renderEditorView();
+      });
+    });
+
+    grid.querySelectorAll('[data-move-prev]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const i = Number(btn.dataset.movePrev);
+        if (i <= 0) return;
+        [doc.pages[i - 1], doc.pages[i]] = [doc.pages[i], doc.pages[i - 1]];
+        state.activePageIndex = i - 1;
+        await saveActiveDoc();
+        renderEditorView();
+      });
+    });
+
+    grid.querySelectorAll('[data-move-next]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const i = Number(btn.dataset.moveNext);
+        if (i >= doc.pages.length - 1) return;
+        [doc.pages[i + 1], doc.pages[i]] = [doc.pages[i], doc.pages[i + 1]];
+        state.activePageIndex = i + 1;
+        await saveActiveDoc();
+        renderEditorView();
+      });
+    });
   }
 
   // =========================================================================
-  // 11. TANDA TANGAN DIGITAL, STEMPEL & WATERMARK DIAGONAL
+  // 11. TANDA TANGAN DIGITAL, AUTO-TRANSPARAN, STEMPEL & WATERMARK DIAGONAL
   // =========================================================================
   function initSignaturePad() {
-    const pad = document.getElementById('signature-pad');
-    const ctx = pad.getContext('2d');
+    const canvas = document.getElementById('signature-pad');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     let drawing = false;
 
     const getPos = (e) => {
-      const rect = pad.getBoundingClientRect();
+      const rect = canvas.getBoundingClientRect();
       return {
-        x: ((e.clientX - rect.left) / rect.width) * pad.width,
-        y: ((e.clientY - rect.top) / rect.height) * pad.height
+        x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((e.clientY - rect.top) / rect.height) * canvas.height
       };
     };
 
-    pad.addEventListener('pointerdown', (e) => {
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
       drawing = true;
-      pad.setPointerCapture(e.pointerId);
-      const p = getPos(e);
+      canvas.setPointerCapture(e.pointerId);
+      const pos = getPos(e);
       ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
+      ctx.moveTo(pos.x, pos.y);
       ctx.strokeStyle = state.signaturePenColor;
       ctx.lineWidth = 3.2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
     });
-    pad.addEventListener('pointermove', (e) => {
+
+    canvas.addEventListener('pointermove', (e) => {
       if (!drawing) return;
-      const p = getPos(e);
-      ctx.lineTo(p.x, p.y);
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
     });
-    pad.addEventListener('pointerup', () => { drawing = false; });
+
+    const stopDraw = () => { drawing = false; };
+    canvas.addEventListener('pointerup', stopDraw);
+    canvas.addEventListener('pointercancel', stopDraw);
   }
 
-  function removeWhiteBgFromSignature(file) {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const img = await loadImageObj(reader.result);
+  async function removeWhiteBgFromSignature(file) {
+    try {
+      const rawUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const img = await loadImageObj(rawUrl);
       const c = document.createElement('canvas');
       c.width = img.width; c.height = img.height;
-      const ctx = c.getContext('2d');
+      const ctx = c.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(img, 0, 0);
       const imgData = ctx.getImageData(0, 0, c.width, c.height);
       const d = imgData.data;
+
       for (let i = 0; i < d.length; i += 4) {
         const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        if (lum > 205) d[i + 3] = 0; // Transparan otomatis
+        if (lum > 205) {
+          d[i + 3] = 0; // Latar putih jadi transparan penuh
+        } else if (lum > 165) {
+          d[i + 3] = Math.round(((205 - lum) / 40) * 255);
+        }
       }
       ctx.putImageData(imgData, 0, 0);
       placeInteractiveOverlay(c.toDataURL('image/png'));
-      showToast('Latar putih dihapus otomatis! Geser posisi tanda tangan lalu klik Tempel.', 'success');
-    };
-    reader.readAsDataURL(file);
+      showToast('Latar putih tanda tangan dihapus otomatis! Geser posisi lalu klik Tempel.', 'success');
+    } catch (err) {
+      showToast('Gagal memproses foto tanda tangan: ' + err.message, 'error');
+    }
   }
 
-  function createStampDataUrl(text, color) {
+  function createStampDataUrl(text, color = '#dc2626') {
     const c = document.createElement('canvas');
-    c.width = 420; c.height = 150;
+    c.width = 420; c.height = 160;
     const ctx = c.getContext('2d');
     ctx.save();
-    ctx.translate(210, 75);
-    ctx.rotate(-0.08);
+    ctx.translate(210, 80);
+    ctx.rotate(-0.14);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 7;
-    ctx.strokeRect(-185, -52, 370, 104);
+    ctx.lineWidth = 6;
+    ctx.strokeRect(-175, -48, 350, 96);
     ctx.lineWidth = 2;
-    ctx.strokeRect(-176, -43, 352, 86);
+    ctx.strokeRect(-167, -40, 334, 80);
     ctx.fillStyle = color;
-    ctx.font = '900 42px sans-serif';
+    ctx.font = '900 42px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text.toUpperCase().slice(0, 14), 0, 2);
@@ -2425,34 +2713,42 @@
 
   function placeInteractiveOverlay(dataUrl) {
     const doc = getActiveDoc();
-    if (!doc || !doc.pages[state.activePageIndex]) return showToast('Pilih halaman terlebih dahulu.', 'warning');
+    if (!doc || !doc.pages[state.activePageIndex]) {
+      return showToast('Pilih halaman dokumen terlebih dahulu.', 'warning');
+    }
 
+    cancelOverlay();
     const layer = document.getElementById('overlay-layer');
-    layer.innerHTML = '';
     layer.classList.remove('pointer-events-none');
 
     const imgEl = document.createElement('img');
     imgEl.src = dataUrl;
-    imgEl.className = 'doc-overlay-item';
+    imgEl.className = 'doc-overlay-item rounded';
     imgEl.style.left = '25%';
     imgEl.style.top = '35%';
     imgEl.style.width = '140px';
     imgEl.draggable = false;
 
-    let dragging = false, startX = 0, startY = 0, initL = 0, initT = 0;
+    let startX = 0, startY = 0, origLeft = 0, origTop = 0, dragging = false;
     imgEl.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       dragging = true;
       imgEl.setPointerCapture(e.pointerId);
-      startX = e.clientX; startY = e.clientY;
-      initL = imgEl.offsetLeft; initT = imgEl.offsetTop;
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = imgEl.offsetLeft;
+      origTop = imgEl.offsetTop;
     });
     imgEl.addEventListener('pointermove', (e) => {
       if (!dragging) return;
-      imgEl.style.left = (initL + e.clientX - startX) + 'px';
-      imgEl.style.top = (initT + e.clientY - startY) + 'px';
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      imgEl.style.left = (origLeft + dx) + 'px';
+      imgEl.style.top = (origTop + dy) + 'px';
     });
-    imgEl.addEventListener('pointerup', () => { dragging = false; });
+    const endDrag = () => { dragging = false; };
+    imgEl.addEventListener('pointerup', endDrag);
+    imgEl.addEventListener('pointercancel', endDrag);
 
     layer.appendChild(imgEl);
     state.activeOverlay = { el: imgEl, dataUrl };
@@ -2462,49 +2758,58 @@
 
   function cancelOverlay() {
     const layer = document.getElementById('overlay-layer');
-    layer.innerHTML = '';
-    layer.classList.add('pointer-events-none');
+    if (layer) {
+      layer.innerHTML = '';
+      layer.classList.add('pointer-events-none');
+    }
     state.activeOverlay = null;
-    document.getElementById('active-overlay-bar').classList.add('hidden');
+    document.getElementById('active-overlay-bar')?.classList.add('hidden');
   }
 
   async function bakeOverlayToPage() {
-    if (!state.activeOverlay) return;
     const doc = getActiveDoc();
     const page = doc?.pages[state.activePageIndex];
-    if (!page) return;
+    if (!page || !state.activeOverlay) return;
 
     const previewCanvas = document.getElementById('editor-preview-canvas');
-    const dispRect = previewCanvas.getBoundingClientRect();
-    const elRect = state.activeOverlay.el.getBoundingClientRect();
+    const el = state.activeOverlay.el;
+    const scaleX = previewCanvas.width / (previewCanvas.clientWidth || previewCanvas.width);
+    const scaleY = previewCanvas.height / (previewCanvas.clientHeight || previewCanvas.height);
 
-    const scaleX = previewCanvas.width / dispRect.width;
-    const scaleY = previewCanvas.height / dispRect.height;
+    const drawX = el.offsetLeft * scaleX;
+    const drawY = el.offsetTop * scaleY;
+    const drawW = el.clientWidth * scaleX;
+    const drawH = el.clientHeight * scaleY;
 
-    const x = (elRect.left - dispRect.left) * scaleX;
-    const y = (elRect.top - dispRect.top) * scaleY;
-    const w = elRect.width * scaleX;
-    const h = elRect.height * scaleY;
-
+    const baseImg = await loadImageObj(page.processedDataUrl);
     const ovImg = await loadImageObj(state.activeOverlay.dataUrl);
-    const ctx = previewCanvas.getContext('2d');
-    ctx.drawImage(ovImg, x, y, w, h);
 
-    const bakedUrl = previewCanvas.toDataURL('image/jpeg', 0.9);
+    const c = document.createElement('canvas');
+    c.width = baseImg.width;
+    c.height = baseImg.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(baseImg, 0, 0);
+    ctx.drawImage(ovImg, drawX, drawY, drawW, drawH);
+
+    const bakedUrl = c.toDataURL('image/jpeg', 0.92);
     page.originalDataUrl = bakedUrl;
     page.processedDataUrl = bakedUrl;
+    page.rotation = 0;
+
     cancelOverlay();
+    await drawActivePageToPreview(bakedUrl);
     await saveActiveDoc();
-    renderEditorView();
-    showToast('Elemen berhasil ditempel ke halaman!', 'success');
+    renderPagesGrid();
+    showToast('Elemen berhasil ditempel permanen ke halaman!', 'success');
   }
 
   async function applyDiagonalWatermark() {
-    const text = document.getElementById('input-watermark-text').value.trim();
-    if (!text) return showToast('Masukkan teks watermark terlebih dahulu.', 'warning');
     const doc = getActiveDoc();
     const page = doc?.pages[state.activePageIndex];
-    if (!page) return showToast('Belum ada halaman aktif.', 'warning');
+    if (!page) return showToast('Pilih halaman terlebih dahulu.', 'warning');
+
+    const text = document.getElementById('input-watermark-text').value.trim();
+    if (!text) return showToast('Ketik teks watermark terlebih dahulu.', 'warning');
 
     const img = await loadImageObj(page.processedDataUrl);
     const c = document.createElement('canvas');
@@ -2515,34 +2820,129 @@
     ctx.save();
     ctx.translate(c.width / 2, c.height / 2);
     ctx.rotate(-Math.PI / 4);
-    const fontSize = Math.max(24, Math.round(c.width * 0.055));
-    ctx.font = `800 ${fontSize}px sans-serif`;
-    ctx.fillStyle = 'rgba(100, 116, 139, 0.25)';
+    const fontSize = Math.max(28, Math.round(Math.min(c.width, c.height) * 0.065));
+    ctx.font = `800 ${fontSize}px Inter, sans-serif`;
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.28)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    for (let offsetY = -c.height; offsetY <= c.height; offsetY += fontSize * 4) {
-      ctx.fillText(text.toUpperCase(), 0, offsetY);
-    }
+    ctx.fillText(text.toUpperCase(), 0, 0);
     ctx.restore();
 
-    const wmUrl = c.toDataURL('image/jpeg', 0.9);
-    page.originalDataUrl = wmUrl;
-    page.processedDataUrl = wmUrl;
+    const markedUrl = c.toDataURL('image/jpeg', 0.92);
+    page.originalDataUrl = markedUrl;
+    page.processedDataUrl = markedUrl;
+    page.rotation = 0;
+
+    await drawActivePageToPreview(markedUrl);
     await saveActiveDoc();
-    renderEditorView();
+    renderPagesGrid();
     showToast('Watermark diagonal diterapkan!', 'success');
   }
 
   // =========================================================================
-  // 12. EKSPOR PDF (A4/F4/LETTER/AUTO-FIT, KOMPRESI, PASSWORD, SHARE, PRINT)
+  // 12. EKSPOR PDF (AUTO-FIT, A4/F4/LETTER, ORIENTASI, FIT/FILL, MARGIN, PASSWORD, SHARE, PRINT)
   // =========================================================================
+  function getCurrentExportConfigFromUI() {
+    return {
+      paperSize: document.getElementById('export-paper-size')?.value || 'a4',
+      orientation: document.getElementById('export-orientation')?.value || 'auto',
+      fitMode: document.getElementById('export-fit-mode')?.value || 'contain',
+      margin: parseFloat(document.getElementById('export-margin')?.value ?? '5')
+    };
+  }
+
+  function syncExportSettingsUI() {
+    const doc = getActiveDoc();
+    const scope = document.getElementById('export-page-scope')?.value || 'all';
+    const infoEl = document.getElementById('export-scope-info');
+    if (!doc) {
+      if (infoEl) infoEl.textContent = 'Belum ada dokumen aktif.';
+      return;
+    }
+
+    const activePage = doc.pages[state.activePageIndex];
+    const cfg = (scope === 'current' && activePage?.pdfConfig)
+      ? activePage.pdfConfig
+      : {
+          paperSize: doc.paperSize || 'a4',
+          orientation: doc.paperOrientation || 'auto',
+          fitMode: doc.paperFitMode || 'contain',
+          margin: doc.paperMargin !== undefined ? doc.paperMargin : 5
+        };
+
+    document.getElementById('export-paper-size').value = cfg.paperSize || 'a4';
+    document.getElementById('export-orientation').value = cfg.orientation || 'auto';
+    document.getElementById('export-fit-mode').value = cfg.fitMode || 'contain';
+    document.getElementById('export-margin').value = String(cfg.margin !== undefined ? cfg.margin : 5);
+
+    if (infoEl) {
+      infoEl.textContent = scope === 'current'
+        ? `Mengatur khusus Halaman #${state.activePageIndex + 1} dari ${doc.pages.length} halaman.`
+        : `Pengaturan kertas berlaku untuk semua ${doc.pages.length} halaman PDF.`;
+    }
+  }
+
+  async function saveExportPaperSettings(forceApplyAll = false) {
+    const doc = getActiveDoc();
+    if (!doc) return;
+    const cfg = getCurrentExportConfigFromUI();
+    const scope = forceApplyAll ? 'all' : (document.getElementById('export-page-scope')?.value || 'all');
+
+    if (scope === 'all') {
+      doc.paperSize = cfg.paperSize;
+      doc.paperOrientation = cfg.orientation;
+      doc.paperFitMode = cfg.fitMode;
+      doc.paperMargin = cfg.margin;
+      doc.pages.forEach((pg) => {
+        pg.pdfConfig = { ...cfg };
+      });
+      if (forceApplyAll) {
+        document.getElementById('export-page-scope').value = 'all';
+        showToast(`Ukuran kertas diterapkan ke seluruh ${doc.pages.length} halaman!`, 'success');
+      }
+    } else if (doc.pages[state.activePageIndex]) {
+      doc.pages[state.activePageIndex].pdfConfig = { ...cfg };
+    }
+    syncExportSettingsUI();
+    await saveActiveDoc(false);
+  }
+
+  // Render gambar beresolusi tinggi dengan mode Fit (Proporsional) atau Fill (Center-Crop Penuh)
+  function renderImageForPdfPage(img, targetRatio, fitMode, quality) {
+    const c = document.createElement('canvas');
+    if (fitMode === 'cover' && targetRatio > 0) {
+      const imgRatio = img.width / img.height;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (imgRatio > targetRatio) {
+        sw = Math.round(img.height * targetRatio);
+        sx = Math.round((img.width - sw) / 2);
+      } else {
+        sh = Math.round(img.width / targetRatio);
+        sy = Math.round((img.height - sh) / 2);
+      }
+      c.width = sw;
+      c.height = sh;
+      c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    } else {
+      c.width = img.width;
+      c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+    }
+    return {
+      dataUrl: c.toDataURL('image/jpeg', quality),
+      width: c.width,
+      height: c.height
+    };
+  }
+
   async function buildPdfDocument() {
     const doc = getActiveDoc();
     if (!doc || doc.pages.length === 0) throw new Error('Tidak ada halaman untuk diekspor.');
     if (!window.jspdf?.jsPDF) throw new Error('Pustaka jsPDF belum termuat.');
 
-    const sizeKey = document.getElementById('export-paper-size').value;
-    const quality = parseFloat(document.getElementById('export-quality').value) || 0.72;
+    const uiCfg = getCurrentExportConfigFromUI();
+    const scope = document.getElementById('export-page-scope')?.value || 'all';
+    const quality = parseFloat(document.getElementById('export-quality').value) || 0.78;
     const password = document.getElementById('export-pdf-password').value.trim();
 
     const formats = {
@@ -2554,22 +2954,38 @@
     let pdf = null;
 
     for (let i = 0; i < doc.pages.length; i++) {
-      const img = await loadImageObj(doc.pages[i].processedDataUrl);
-      // Kompresi ulang sesuai pilihan kualitas
-      const c = document.createElement('canvas');
-      c.width = img.width; c.height = img.height;
-      c.getContext('2d').drawImage(img, 0, 0);
-      const compressedData = c.toDataURL('image/jpeg', quality);
+      const pageObj = doc.pages[i];
+      const img = await loadImageObj(pageObj.processedDataUrl);
+
+      // Gunakan pengaturan halaman masing-masing jika scope = 'current', atau seragam jika 'all'
+      const cfg = (scope === 'current' && pageObj.pdfConfig) ? pageObj.pdfConfig : uiCfg;
+      const sizeKey = cfg.paperSize || 'a4';
+      const orientPref = cfg.orientation || 'auto';
+      const fitMode = cfg.fitMode || 'contain';
+      const margin = sizeKey === 'autofit' ? 0 : (isNaN(cfg.margin) ? 5 : cfg.margin);
 
       let pageW, pageH, orientation;
       if (sizeKey === 'autofit') {
-        const pxToMm = 0.264583;
-        pageW = Math.max(50, img.width * pxToMm);
-        pageH = Math.max(50, img.height * pxToMm);
+        // Pemetaan DPI tajam (~150-200 DPI) mengikuti rasio asli hasil crop tanpa margin berlebih
+        const targetWidthMm = 210;
+        const aspect = img.height / img.width;
+        if (img.width > img.height) {
+          pageW = 297;
+          pageH = Math.max(60, pageW * aspect);
+        } else {
+          pageW = targetWidthMm;
+          pageH = Math.max(60, pageW * aspect);
+        }
         orientation = pageW > pageH ? 'l' : 'p';
       } else {
         [pageW, pageH] = formats[sizeKey] || formats.a4;
-        orientation = img.width > img.height ? 'l' : 'p';
+        if (orientPref === 'landscape') {
+          orientation = 'l';
+        } else if (orientPref === 'portrait') {
+          orientation = 'p';
+        } else {
+          orientation = img.width > img.height ? 'l' : 'p';
+        }
         if (orientation === 'l') [pageW, pageH] = [pageH, pageW];
       }
 
@@ -2587,16 +3003,25 @@
         pdf.addPage([pageW, pageH], orientation);
       }
 
-      const margin = sizeKey === 'autofit' ? 0 : 6;
-      const maxW = pageW - margin * 2;
-      const maxH = pageH - margin * 2;
-      const ratio = Math.min(maxW / img.width, maxH / img.height);
-      const drawW = img.width * ratio;
-      const drawH = img.height * ratio;
+      const maxW = Math.max(10, pageW - margin * 2);
+      const maxH = Math.max(10, pageH - margin * 2);
+      const rendered = renderImageForPdfPage(img, maxW / maxH, fitMode, quality);
+
+      let drawW, drawH;
+      if (fitMode === 'cover' && sizeKey !== 'autofit') {
+        drawW = maxW;
+        drawH = maxH;
+      } else {
+        const ratio = Math.min(maxW / rendered.width, maxH / rendered.height);
+        drawW = rendered.width * ratio;
+        drawH = rendered.height * ratio;
+      }
+
+      // Posisi gambar selalu center-aligned di tengah halaman
       const offsetX = (pageW - drawW) / 2;
       const offsetY = (pageH - drawH) / 2;
 
-      pdf.addImage(compressedData, 'JPEG', offsetX, offsetY, drawW, drawH, undefined, 'FAST');
+      pdf.addImage(rendered.dataUrl, 'JPEG', offsetX, offsetY, drawW, drawH, undefined, 'FAST');
     }
 
     return { pdf, filename: `${doc.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf` };
@@ -2923,6 +3348,12 @@
     document.querySelectorAll('.scan-mode-btn').forEach((btn) => {
       btn.addEventListener('click', () => setScanMode(btn.dataset.scanMode));
     });
+    const autoCropCheckbox = document.getElementById('toggle-auto-crop');
+    autoCropCheckbox.checked = state.autoCropEnabled;
+    autoCropCheckbox.onchange = (e) => {
+      state.autoCropEnabled = e.target.checked;
+      showToast(state.autoCropEnabled ? 'Auto-Crop & Pelurusan Otomatis aktif.' : 'Auto-Crop otomatis dimatikan.', 'info');
+    };
     const batchCheckbox = document.getElementById('toggle-batch-scan');
     batchCheckbox.checked = state.batchMode;
     batchCheckbox.onchange = (e) => {
@@ -2953,11 +3384,12 @@
       if (!getActiveDoc()) await createNewDocument(null, state.scanMode);
 
       if (files.length > 1) {
-        showToast(`Mengimpor ${files.length} foto sekaligus...`, 'info');
+        showToast(`Mengimpor ${files.length} foto${state.autoCropEnabled ? ' + Auto-Crop otomatis' : ''}...`, 'info');
         for (const f of files) {
           const rawUrl = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
           const normUrl = await normalizeImageDataUrl(rawUrl, 1600, 0.86);
-          await addPageToActiveDoc(normUrl);
+          const finalUrl = state.autoCropEnabled ? await autoCropAndDewarp(normUrl) : normUrl;
+          await addPageToActiveDoc(finalUrl);
         }
         showToast(`${files.length} foto berhasil ditambahkan ke dokumen!`, 'success');
         if (!state.batchMode) switchView('editor');
@@ -2984,6 +3416,7 @@
       updateCropHandlesUI();
     };
     document.getElementById('btn-crop-cancel').onclick = () => {
+      hideCropLoupe();
       document.getElementById('modal-cropper').classList.add('hidden');
       state.cropContext = null;
     };
@@ -3018,6 +3451,18 @@
         await reprocessActivePage();
         renderEditorView();
       }, false);
+    };
+    document.getElementById('btn-auto-crop-page').onclick = async () => {
+      const doc = getActiveDoc();
+      const page = doc?.pages[state.activePageIndex];
+      if (!page) return showToast('Pilih halaman terlebih dahulu.', 'warning');
+      showToast('Mendeteksi tepi & meluruskan perspektif...', 'info');
+      const warpedUrl = await autoCropAndDewarp(page.originalDataUrl);
+      page.originalDataUrl = warpedUrl;
+      page.processedDataUrl = warpedUrl;
+      await reprocessActivePage();
+      renderEditorView();
+      showToast('Auto-Crop & pelurusan perspektif berhasil!', 'success');
     };
     document.getElementById('btn-rotate-page').onclick = async () => {
       const doc = getActiveDoc();
@@ -3114,6 +3559,11 @@
     document.getElementById('btn-apply-watermark').onclick = applyDiagonalWatermark;
 
     // AI & Export
+    ['export-paper-size', 'export-orientation', 'export-fit-mode', 'export-margin'].forEach((id) => {
+      document.getElementById(id).onchange = () => saveExportPaperSettings(false);
+    });
+    document.getElementById('export-page-scope').onchange = () => syncExportSettingsUI();
+    document.getElementById('btn-apply-paper-all').onclick = () => saveExportPaperSettings(true);
     document.getElementById('btn-export-pdf').onclick = handleExportPdf;
     document.getElementById('btn-share-pdf').onclick = handleSharePdf;
     document.getElementById('btn-print-doc').onclick = handlePrintDoc;
